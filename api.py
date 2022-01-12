@@ -10,8 +10,10 @@ import utils
 from recommend_engine import RecSys
 import time
 import cold_start
+from flask_cors import CORS
 
 app = flask.Flask(__name__)
+CORS(app)
 
 
 app.config['MYSQL_HOST'] = '66.42.59.144'
