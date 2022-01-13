@@ -11,6 +11,7 @@ from recommend_engine import RecSys
 import time
 import cold_start
 from flask_cors import CORS
+import state1
 
 app = flask.Flask(__name__)
 CORS(app)
@@ -37,35 +38,24 @@ def individual_recommend_list_state1():
     else:
         return "Error: No id field provided. Please specify an id."
     
-    # start = time.time()
-    cur = mysql.connection.cursor()
-    
-    cur.execute("""SELECT id_user, id_movie, is_clicked FROM moviedb.interactive""")
-    res = cur.fetchall()
-    mysql.connection.commit()
-    # end = time.time()
-    # print("elapse time: ", end-start)
-    training_df = pd.DataFrame(res, columns=['id_user', 'id_movie', 'rating'])
+    mov_ids = cold_start.get_movie_ids_from_db(mysql,id_user)
+    if cold_start.check_new_user(mov_ids):
+        print("New user detected!")
+        rec_list = cold_start.get_recommend_list(mov_ids,10,mysql)
+    else:
+        print("Old user detected!")
 
-    
-    # start = time.time()
-    cur.execute("""SELECT id_user_2, similarity FROM moviedb.jaccard_similarity WHERE id_user_1 = %s""", (id_user,))
-    res = cur.fetchall()
-    mysql.connection.commit()
-    # end = time.time()
-    # print("elapse time: ", end-start)
-    user_df = pd.DataFrame(res, columns=['id_user_2', 'similarity'])
-    
-    # results = []
-    # start = time.time()
-    rec_list, df = utils.recommend_list(id_user, 10, training_df, user_df)
-    # results = df.to_dict('record')
-    # end = time.time()
-    # print("elapse time: ", end-start)
+        # start = time.time()
+        training, user = state1.fetch_data(mysql, id_user)
+        # end = time.time()
+        # print("elapse time: ", end-start)
 
-    rec_list =  rec_list[0:10]
+        # start = time.time()
+        rec_list = state1.recommend_sys(id_user, 10, training, user)
+        # end = time.time()
+        # print("elapse time: ", end-start)
+
     results = pd.DataFrame(rec_list, columns=['id']).to_dict('records')
-    cur.close()
 
     return jsonify(results)
 
@@ -98,7 +88,6 @@ def group_recommend_list_state1():
         
         i_tmp, i_r_tmp = utils.recommend_list(int(user_ids[i]), 10, training_df, user_df)
         df = df.append([i_r_tmp])
-
    
     g_items =  pd.DataFrame(df['Item'])
     g_items.drop_duplicates(subset ="Item", keep='first', inplace = True)
@@ -109,8 +98,6 @@ def group_recommend_list_state1():
         new_gen.insert(0, 'User_count', len(g_r))
         result= result.append(new_gen, ignore_index=True)
     result=result.sort_values(['User_count','Rating'], ascending=[False, False])
-  
- 
     
     rec_list = result['Item'].to_list()[0:10]
     results = pd.DataFrame(rec_list, columns=['id']).to_dict('records')
