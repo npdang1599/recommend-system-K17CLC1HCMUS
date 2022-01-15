@@ -54,9 +54,10 @@ def recommend_sys(user, N, training_df, user_df):
     #Trả về danh sách N item 
     return df['Item'].to_list()
 
-def fetch_data(mysql, user_id):
+# def fetch_data(mysql, user_id):
     cur = mysql.connection.cursor()
-    
+
+    # start = time.time()
     cur.execute("""SELECT id_user, id_movie, is_clicked FROM moviedb.interactive""")
     res = cur.fetchall()
     mysql.connection.commit()
@@ -73,6 +74,7 @@ def fetch_data(mysql, user_id):
     # print("elapse time: ", end-start)
     user_df = pd.DataFrame(res, columns=['id_user_2', 'similarity'])
     
+
     cur.close()
 
     return training_df, user_df

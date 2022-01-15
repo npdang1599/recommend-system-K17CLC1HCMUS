@@ -12,6 +12,7 @@ import time
 import cold_start
 from flask_cors import CORS
 import state1
+import fetch_data
 
 app = flask.Flask(__name__)
 CORS(app)
@@ -28,9 +29,15 @@ mysql = MySQL(app)
 
 @app.route('/', methods=['GET'])
 def home():
-    return """<h1>Movie recommend engine</h1>
-              <p>This site is APIs for getting list of recommend movies.</p>"""
-    
+
+    ratings = cold_start.get_rating_data_from_db(mysql)
+    similar_ids = cold_start.find_similar_movies(1, k=20, ratings=ratings)
+
+    results = pd.DataFrame(similar_ids, columns=['id']).to_dict('records')
+    # return """<h1>Movie recommend engine</h1>
+    #           <p>This site is APIs for getting list of recommend movies.</p>"""
+    return jsonify(results)
+
 @app.route('/individual/state1/', methods=['GET'])
 def individual_recommend_list_state1():
     if 'id' in request.args:
@@ -46,12 +53,16 @@ def individual_recommend_list_state1():
         print("Old user detected!")
 
         # start = time.time()
-        training, user = state1.fetch_data(mysql, id_user)
+        #training, user = state1.fetch_data(mysql, id_user)
+        cur = mysql.connection.cursor()
+        click_df = fetch_data.rating_click_df(cur)
+        sim_df = fetch_data.similarity_df(cur,id_user)
+        cur.close()
         # end = time.time()
         # print("elapse time: ", end-start)
 
         # start = time.time()
-        rec_list = state1.recommend_sys(id_user, 10, training, user)
+        rec_list = state1.recommend_sys(id_user, 10, click_df, sim_df)
         # end = time.time()
         # print("elapse time: ", end-start)
 
@@ -67,26 +78,13 @@ def group_recommend_list_state1():
         return "Error: No id field provided. Please specify an id."
     
     cur = mysql.connection.cursor()
- 
-    cur.execute("""SELECT id_user, id_movie, is_clicked FROM moviedb.interactive""")
-    res = cur.fetchall()
-    mysql.connection.commit()
-    # end = time.time()
-    # print("elapse time: ", end-start)
-    training_df = pd.DataFrame(res, columns=['id_user', 'id_movie', 'rating'])
-    
+    training_df = fetch_data.rating_click_df(cur)
    
     df = pd.DataFrame()
     for i in range(len(user_ids)):
-        # print('i:', i)
-        # print('user_',user_ids[i])
+        user_df = fetch_data.similarity_df(cur,i)
         
-        cur.execute("""SELECT id_user_2, similarity FROM moviedb.jaccard_similarity WHERE id_user_1 = %s""", (i,))
-        res = cur.fetchall()
-        mysql.connection.commit()
-        user_df = pd.DataFrame(res, columns=['id_user_2', 'similarity'])
-        
-        i_tmp, i_r_tmp = utils.recommend_list(int(user_ids[i]), 10, training_df, user_df)
+        i_tmp, i_r_tmp = state1.recommend_sys(int(user_ids[i]), 10, training_df, user_df)
         df = df.append([i_r_tmp])
    
     g_items =  pd.DataFrame(df['Item'])
@@ -129,8 +127,6 @@ def individual_recommend_list_state2():
     # print('item_factor: ',movie_factor,'\nType: ',type(movie_factor),'\nShape: ', movie_factor.shape,'\n')
    
     # Get data of user bias
-    # Chỗ này có id_user k?
-    # sao nó nói k thế
     cur.execute("""SELECT * FROM moviedb.user_biases WHERE id_user = %s""",(id_user,))
     res = cur.fetchall()
     mysql.connection.commit()
@@ -146,14 +142,12 @@ def individual_recommend_list_state2():
     movie_bias = np.asarray(res, dtype= float).flatten()
     # print('movie_bias: ', movie_bias,'\nType: ',type(movie_bias),'\nShape: ', movie_bias.shape,'\n')
     
-   
     # Get data of global rating mean:
     cur.execute("""SELECT * FROM moviedb.global_mean_ratings """)
     res = cur.fetchall()
     mysql.connection.commit()
     global_mean_rating = np.asarray(res, dtype= float).flatten()[0]
     # print('global_mean_rating: ', global_mean_rating,'\nType: ',type(global_mean_rating),'\nShape: ', global_mean_rating.shape,'\n')
-    
    
     # Get rating datas:
     cur.execute("""SELECT id_user, id_movie, rating FROM moviedb.interactive""")
@@ -209,27 +203,4 @@ def group_recommend_list_state2():
     cur.close()
 
     return jsonify(results)
-
-
-@app.route('/individual/new_user/', methods=['GET'])
-def new_user_recommend_list():
-    if 'id' in request.args:
-        movie_ids = request.args.getlist("id")
-    else:
-        return "Error: No id field provided. Please specify an id."
-    movie_ids = [int(item) for item in movie_ids]
-    print(type(movie_ids))
-    print(movie_ids)
-    
-    features = cold_start.get_genre(mysql)
-    cosine_sim = cold_start.cosine_sim(features)
-    res = cold_start.get_content_based_recommendations(movie_ids, cosine_sim)
-    print("res: ", res)
-    print("type: ", type(res))
-    
-    results = pd.DataFrame(res, columns=['id']).to_dict('records')
-    
-
-    return jsonify(results)
-    
 app.run()
