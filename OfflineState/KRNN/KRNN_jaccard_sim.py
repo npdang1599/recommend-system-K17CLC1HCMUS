@@ -6,6 +6,7 @@ import math
 from scipy import spatial
 import copy
 import Jaccard_sim
+import MySQLdb
 
 # get_list_sim function: calculate similarity between user and store in a list
 # Input;
@@ -20,7 +21,7 @@ def get_list_sim(rating_click_df, first_user, last_user):
       print("user_get_list_sim: ", i)
       df = Jaccard_sim.sim_df(rating_click_df, i)
       df_list.append(df)
-    
+
     return df_list
 
 #Hàm tính toán lại sim của người dùng theo thuật toán K-RNN
@@ -30,7 +31,7 @@ def get_list_sim(rating_click_df, first_user, last_user):
 #Output:
 #file excel chứa độ tương đồng của các người dùng
 def recal_sim(df_list, gamma, k, path, first, last):
-
+  
   #Vòng lặp người dùng 
   for i in range(first - 1, last, 1):
 
@@ -65,7 +66,45 @@ def recal_sim(df_list, gamma, k, path, first, last):
     #Sắp xếp lại láng giềng theo giá trị sim mới
     u_sim = u_sim.sort_values(by=['Sim'], axis=0, ascending=False, ignore_index=True)
 
-    #Chuyển sang file excel 
-    u_sim.to_excel(r"{0}/{1}.xlsx".format(path, i + 1), index = False) 
+    #Insert to database
+    u_sim.insert(0, 'user_1', i+1, allow_duplicates=False)
+    conn = MySQLdb.connect(host="66.42.59.144", user="lucifer", passwd="12344321", db="moviedb")
+    object_list = u_sim.to_records(index=False).tolist()
+    fields = ("id_user_1", "id_user_2", "similarity")
+    upsert(conn, "jaccard_similarity", fields, object_list)
+    print("user_1 " + str(i) +" upserts successfully")
+
+
+# upsert
+# purpose: Insert records if not exists, Update records on the dupplicate key
+# params:
+#     conn is MySQLdb.connect
+#     table is the table name need to be inserted data, datatype is str
+#     fields are the column names of table, datatype is tuple
+#     object_list is the list of dataframe values, datatype is list
+def upsert(conn, table, fields, object_list):
+    cursor = conn.cursor()
+    table = "`"+table+"`"
+    fields = ["`"+field+"`" for field in tuple(fields)]
+    placeholders = ["%s" for field in fields]
+    assignments = ["{x} = VALUES({x})".format(
+        x=x
+    ) for x in fields]
+
+    query_string = """INSERT INTO
+    {table}
+    ({fields})
+    VALUES
+    ({placeholders})
+    ON DUPLICATE KEY UPDATE {assignments}""".format(
+                                                    table=table,
+                                                    fields=", ".join(fields),
+                                                    placeholders=", ".join(placeholders),
+                                                    assignments=", ".join(assignments)
+                                                    )
+    
+    cursor.executemany(query_string, object_list)
+    conn.commit()
+    print(table + ' upserts successfully')
 
 
