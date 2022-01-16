@@ -29,6 +29,6 @@ def main():
     gr.sgd_factorize()
     get_MF_data(gr)
 
-    
 if __name__ == "__main__":
     main()
+
