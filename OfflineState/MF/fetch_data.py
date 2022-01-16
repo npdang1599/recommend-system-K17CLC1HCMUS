@@ -105,3 +105,14 @@ def movie_director_actor(cur, list_item_id):
     cur.execute("""SELECT id, director, actor FROM moviedb.movie WHERE id IN %s""",(tuple(list_item_id),))
     res = cur.fetchall()
     return pd.DataFrame(res, columns=['id','director','actor'])
+
+
+def genre(cur):
+    cur.execute("""SELECT mList.id_movie, group_concat( li.name)
+                    FROM moviedb.movie_list mList
+                    JOIN moviedb.list li ON mList.id_list = li.id
+                    where li.type = 0
+                    group by mList.id_movie""")
+    res = cur.fetchall()
+    movies = pd.DataFrame(res, columns=['movieId','genres'])
+    return movies

@@ -1,3 +1,4 @@
+from OfflineState.MF.fetch_data import user_factor
 import group
 from group import Group
 import numpy as np
@@ -17,15 +18,13 @@ import fetch_data
 app = flask.Flask(__name__)
 CORS(app)
 
-
 app.config['MYSQL_HOST'] = '66.42.59.144'
 app.config['MYSQL_PORT'] = 3306
 app.config['MYSQL_USER'] = 'lucifer'
-app.config['MYSQL_PASSWORD'] = '123123'
+app.config['MYSQL_PASSWORD'] = '12344321'
 app.config['MYSQL_DB'] = 'moviedb'
 
 mysql = MySQL(app)
-
 
 @app.route('/', methods=['GET'])
 def home():
@@ -103,7 +102,7 @@ def group_recommend_list_state1():
 
     return jsonify(results)
 
-@app.route('/individual/state2/', methods=['GET'])
+@app.route('/individual/state2/', methods=['GET']) # /idividual/state2?id=10
 def individual_recommend_list_state2():
     if 'id' in request.args:
         id_user = int(request.args['id'])
@@ -112,50 +111,22 @@ def individual_recommend_list_state2():
     cur = mysql.connection.cursor()
     
     # Get data of user factor:
-    cur.execute("""SELECT * FROM moviedb.user_factors WHERE id_user = %s""",(id_user,))
-    res = cur.fetchall()
-    mysql.connection.commit()
-    user_factor = np.asarray(res, dtype= float).flatten()[1:]
-    # print('user_factor: ', user_factor,'\nType: ',type(user_factor),'\nShape: ', user_factor.shape,'\n')
-   
+    user_factor = fetch_data.user_factor(cur, id_user)
+
     # Get data of item factors
-    cur.execute("""SELECT * FROM moviedb.movie_factors """)
-    res = cur.fetchall()
-    mysql.connection.commit()
-    res = [ele[1:] for ele in res]
-    movie_factor = np.asarray(res, dtype= float)
-    # print('item_factor: ',movie_factor,'\nType: ',type(movie_factor),'\nShape: ', movie_factor.shape,'\n')
+    movie_factor = fetch_data.item_factor(cur)
    
     # Get data of user bias
-    cur.execute("""SELECT * FROM moviedb.user_biases WHERE id_user = %s""",(id_user,))
-    res = cur.fetchall()
-    mysql.connection.commit()
-    user_bias = np.asarray(res, dtype= float).flatten()[1]
-    # print('user_bias: ', user_bias,'\nType: ',type(user_bias),'\nShape: ', user_bias.shape,'\n')
+    user_bias = fetch_data.user_bias(cur, id_user)
     
-   
     # Get data of movie bias
-    cur.execute("""SELECT * FROM moviedb.movie_biases""")
-    res = cur.fetchall()
-    mysql.connection.commit()
-    res = [ele[1:] for ele in res]
-    movie_bias = np.asarray(res, dtype= float).flatten()
-    # print('movie_bias: ', movie_bias,'\nType: ',type(movie_bias),'\nShape: ', movie_bias.shape,'\n')
+    movie_bias = fetch_data.item_bias(cur)
     
     # Get data of global rating mean:
-    cur.execute("""SELECT * FROM moviedb.global_mean_ratings """)
-    res = cur.fetchall()
-    mysql.connection.commit()
-    global_mean_rating = np.asarray(res, dtype= float).flatten()[0]
-    # print('global_mean_rating: ', global_mean_rating,'\nType: ',type(global_mean_rating),'\nShape: ', global_mean_rating.shape,'\n')
-   
+    global_mean_rating = fetch_data.global_rating_mean(cur)
+    
     # Get rating datas:
-    cur.execute("""SELECT id_user, id_movie, rating FROM moviedb.interactive""")
-    res = cur.fetchall()
-    mysql.connection.commit()
-    training_df = pd.DataFrame(res, columns=['id_user', 'id_movie', 'rating'])
-    # print('training_data: ', training_df.head(25))
-    training_df=training_df.dropna()
+    training_df = fetch_data.rating_watchtime_df(cur)
     ratings = utils.convert_data_to_array(training_df)
    
     # Get candidate items:

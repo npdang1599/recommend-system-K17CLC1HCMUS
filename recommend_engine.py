@@ -4,9 +4,8 @@ from config import Config
 import numpy as np
 import pandas as pd
 import warnings
+import fetch_data
 
-import flask
-from flask_mysqldb import MySQL
 
 # overflow warnings should be raised as errors
 np.seterr(over='raise')
@@ -51,12 +50,14 @@ class RecSys:
     def read_data(self, mysql):    
         cur = mysql.connection.cursor()
 
-        cur.execute("""SELECT id_user, id_movie, rating FROM moviedb.interactive""")
-        res = cur.fetchall()
-        mysql.connection.commit()
-        training_data = pd.DataFrame(res, columns=['id_user', 'id_movie', 'rating'])
-        training_data = training_data.dropna()
+        # cur.execute("""SELECT id_user, id_movie, rating FROM moviedb.interactive""")
+        # res = cur.fetchall()
+        # mysql.connection.commit()
+        # training_data = pd.DataFrame(res, columns=['id_user', 'id_movie', 'rating'])
+        # training_data = training_data.dropna()
         # print('training_data: ', training_data.head(25))
+
+        training_data = fetch_data.rating_watchtime_df(cur)
         # Change training_data dataframe to an array of data for calculation purposes
         num_users = max(training_data.id_user.unique())
         num_items = max(training_data.id_movie.unique())
@@ -66,23 +67,25 @@ class RecSys:
         for row in training_data.itertuples(index=False):
             self.ratings[row.id_user - 1, row.id_movie - 1] = row.rating  
         
-        cur.execute("""SELECT * FROM moviedb.movie_factors """)
-        res = cur.fetchall()
-        mysql.connection.commit()
-        res = [ele[1:] for ele in res]
-        self.item_factors = np.asarray(res, dtype= float)
+        # cur.execute("""SELECT * FROM moviedb.movie_factors """)
+        # res = cur.fetchall()
+        # mysql.connection.commit()
+        # res = [ele[1:] for ele in res]
+        # self.item_factors = np.asarray(res, dtype= float)
+        self.item_factors = fetch_data.item_factor(cur)
 
-        cur.execute("""SELECT * FROM moviedb.movie_biases""")
-        res = cur.fetchall()
-        mysql.connection.commit()
-        res = [ele[1:] for ele in res]
-        self.item_biases = np.asarray(res, dtype= float).flatten()
+        # cur.execute("""SELECT * FROM moviedb.movie_biases""")
+        # res = cur.fetchall()
+        # mysql.connection.commit()
+        # res = [ele[1:] for ele in res]
+        # self.item_biases = np.asarray(res, dtype= float).flatten()
+        self.item_biases = fetch_data.item_bias(cur)
 
-        cur.execute("""SELECT * FROM moviedb.global_mean_ratings """)
-        res = cur.fetchall()
-        mysql.connection.commit()
-        self.ratings_global_mean = np.asarray(res, dtype= float).flatten()[0]
-
+        # cur.execute("""SELECT * FROM moviedb.global_mean_ratings """)
+        # res = cur.fetchall()
+        # mysql.connection.commit()
+        # self.ratings_global_mean = np.asarray(res, dtype= float).flatten()[0]
+        self.ratings_global_mean = fetch_data.global_rating_mean(cur)
             
         cur.close()
 

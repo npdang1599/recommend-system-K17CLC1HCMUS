@@ -5,7 +5,7 @@ from sklearn.neighbors import NearestNeighbors
 from scipy.sparse import csr_matrix
 import numpy as np
 
-
+# get_genre fuction: get genre data of movies
 def get_genre(mysql):
     cur = mysql.connection.cursor()
 

@@ -3,6 +3,8 @@ import pandas as pd
 from sklearn.metrics import mean_squared_error
 import group
 from aggregator import Aggregators
+import fetch_data
+import MySQLdb
 
 # overflow warnings should be raised as errors
 np.seterr(over='raise')
@@ -39,18 +41,24 @@ class RecSys:
 
 # read training and testing data into matrices
 def read_data(self):
-    column_headers = ['user_id', 'item_id', 'rating', 'timestamp']
+    # column_headers = ['user_id', 'item_id', 'rating', 'timestamp']
 
-    print('Reading training data from ', self.cfg.training_file, '...')
-    training_data = pd.read_csv(self.cfg.training_file, sep='\t', names=column_headers) 
+    # print('Reading training data from ', self.cfg.training_file, '...')
+    # viewtime_data = pd.read_csv(self.cfg.training_file, sep='\t', names=column_headers) 
+    conn = MySQLdb.connect(host="66.42.59.144", user="lucifer", passwd="12344321", db="moviedb")
+    cur = conn.cursor()
+    viewtime_data = fetch_data.rating_watchtime_df(cur)
+    viewtime_data.columns=['user_id', 'item_id', 'rating']
+    viewtime_data.dropna()
+    cur.close()
 
-    num_users = max(training_data.user_id.unique())
-    num_items = max(training_data.item_id.unique())
+    num_users = max(viewtime_data.user_id.unique())
+    num_items = max(viewtime_data.item_id.unique())
 
     self.ratings = np.zeros((num_users, num_items))
-    self.test_ratings = np.zeros((num_users, num_items))
+    # self.test_ratings = np.zeros((num_users, num_items))
 
-    for row in training_data.itertuples(index=False):
+    for row in viewtime_data.itertuples(index=False):
         self.ratings[row.user_id - 1, row.item_id - 1] = row.rating
 RecSys.read_data = read_data
 
