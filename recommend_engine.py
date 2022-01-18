@@ -18,13 +18,11 @@ def average(arr):
 
 class RecSys:
 
-    def __init__(self, mysql):
+    def __init__(self, cur):
         self.cfg = Config(r"config.conf")
         
         # training and testing matrices
         self.ratings = None
-
-        self.data_ready = 0   
 
         # output after svd factorization
         # initialize all unknowns with random values from -1 to 1
@@ -33,12 +31,13 @@ class RecSys:
 
         # self.user_biases = None
         self.item_biases = None
+        
 
         # global mean of ratings a.k.a mu
         self.ratings_global_mean = None
         
         # read data into above matrices
-        self.read_data(mysql)
+        self.read_data(cur)
         
         self.num_users = self.ratings.shape[0]
         self.num_items = self.ratings.shape[1]
@@ -47,58 +46,60 @@ class RecSys:
         self.predictions = np.zeros((self.num_users, self.num_items))
  
 
-    def read_data(self, mysql):    
-        cur = mysql.connection.cursor()
+def read_data(self, cur):    
 
-        # cur.execute("""SELECT id_user, id_movie, rating FROM moviedb.interactive""")
-        # res = cur.fetchall()
-        # mysql.connection.commit()
-        # training_data = pd.DataFrame(res, columns=['id_user', 'id_movie', 'rating'])
-        # training_data = training_data.dropna()
-        # print('training_data: ', training_data.head(25))
+    training_data = fetch_data.rating_watchtime_df(cur)
 
-        training_data = fetch_data.rating_watchtime_df(cur)
-        # Change training_data dataframe to an array of data for calculation purposes
-        num_users = max(training_data.id_user.unique())
-        num_items = max(training_data.id_movie.unique())
+    # Change training_data dataframe to an array of data for calculation purposes
+    num_users = max(training_data.id_user.unique())
+    num_items = max(training_data.id_movie.unique())
 
-        self.ratings = np.zeros((num_users, num_items))
+    self.ratings = np.zeros((num_users, num_items))
 
-        for row in training_data.itertuples(index=False):
-            self.ratings[row.id_user - 1, row.id_movie - 1] = row.rating  
+    for row in training_data.itertuples(index=False):
+        self.ratings[row.id_user - 1, row.id_movie - 1] = row.rating  
+    
+    self.item_factors = fetch_data.item_factor(cur)
+    self.item_biases = fetch_data.item_bias(cur)
+    self.ratings_global_mean = fetch_data.global_rating_mean(cur)
         
-        # cur.execute("""SELECT * FROM moviedb.movie_factors """)
-        # res = cur.fetchall()
-        # mysql.connection.commit()
-        # res = [ele[1:] for ele in res]
-        # self.item_factors = np.asarray(res, dtype= float)
-        self.item_factors = fetch_data.item_factor(cur)
+    cur.close()
+RecSys.read_data = read_data
 
-        # cur.execute("""SELECT * FROM moviedb.movie_biases""")
-        # res = cur.fetchall()
-        # mysql.connection.commit()
-        # res = [ele[1:] for ele in res]
-        # self.item_biases = np.asarray(res, dtype= float).flatten()
-        self.item_biases = fetch_data.item_bias(cur)
+def predict_user_rating(self, user, item):
+    prediction = self.ratings_global_mean + user.bias + self.item_biases[item]
+    prediction += user.grp_factors.dot(self.item_factors[item, :].T)
+    return prediction
+RecSys.predict_user_rating = predict_user_rating
 
-        # cur.execute("""SELECT * FROM moviedb.global_mean_ratings """)
-        # res = cur.fetchall()
-        # mysql.connection.commit()
-        # self.ratings_global_mean = np.asarray(res, dtype= float).flatten()[0]
-        self.ratings_global_mean = fetch_data.global_rating_mean(cur)
-            
-        cur.close()
+def idv_recommend(self,cur, user):
 
-# RecSys.read_data = read_data
+    print("user: ", user.members[0])
+    user.grp_factors = fetch_data.user_factor(cur, user.members[0])
+    user.bias = fetch_data.user_bias(cur, user.members[0])
+
+    idv_candidate_ratings = {}
+    for idx, item in enumerate(user.candidate_items):
+        cur_rating = self.predict_user_rating(user, item-1)
+
+        idv_candidate_ratings[item-1] = cur_rating
+
+    # sort and filter to keep top 'num_recos_bf' recommendations
+    idv_candidate_ratings = sorted(idv_candidate_ratings.items(), key=lambda x: x[1], reverse=True)
+    # [:self.cfg.num_recos_bf]
+
+    user.reco_list = np.array([rating_tuple[0] for rating_tuple in idv_candidate_ratings])
+RecSys.idv_recommend = idv_recommend
+
 
 def predict_group_rating(self, group, item):
-    factors = group.grp_factors_bf; bias_group = group.bias_bf
+    factors = group.grp_factors; bias_group = group.bias
     return self.ratings_global_mean + bias_group + self.item_biases[item] \
                                     + np.dot(factors.T, self.item_factors[item])
 RecSys.predict_group_rating = predict_group_rating
 
 def bf_runner(self, group):
-        # aggregate user ratings into virtual group
+    # aggregate user ratings into virtual group
     # calculate factors of group
     lamb = self.cfg.lambda_mf
 
@@ -120,8 +121,8 @@ def bf_runner(self, group):
     A = np.c_[A, v]
 
     factor_n_bias = np.dot(np.linalg.inv(np.dot(A.T, A) + lamb * np.identity(self.cfg.num_factors + 1)), np.dot(A.T, s_g))
-    group.grp_factors_bf = factor_n_bias[:-1]
-    group.bias_bf = factor_n_bias[-1]
+    group.grp_factors = factor_n_bias[:-1]
+    group.bias = factor_n_bias[-1]
 
     # Making recommendations on candidate list :
     group_candidate_ratings = {}
@@ -135,6 +136,6 @@ def bf_runner(self, group):
     group_candidate_ratings = sorted(group_candidate_ratings.items(), key=lambda x: x[1], reverse=True)
     # [:self.cfg.num_recos_bf]
 
-    group.reco_list_bf = np.array([rating_tuple[0] for rating_tuple in group_candidate_ratings])
+    group.reco_list = np.array([rating_tuple[0] for rating_tuple in group_candidate_ratings])
 RecSys.bf_runner = bf_runner
 

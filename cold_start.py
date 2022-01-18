@@ -4,43 +4,45 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.neighbors import NearestNeighbors
 from scipy.sparse import csr_matrix
 import numpy as np
+import fetch_data
 
 # get_genre fuction: get genre data of movies
-def get_genre(mysql):
-    cur = mysql.connection.cursor()
+def get_genre(cur):
+    # cur = mysql.connection.cursor()
 
-    cur.execute("""SELECT mList.id_movie, group_concat( li.name)
-                    FROM moviedb.movie_list mList
-                    JOIN moviedb.list li ON mList.id_list = li.id
-                    where li.type = 0
-                    group by mList.id_movie""")
-    res = cur.fetchall()
-    mysql.connection.commit()
-    movies = pd.DataFrame(res, columns=['movieId','genres'])
-    cur.close()
+    # cur.execute("""SELECT mList.id_movie, group_concat( li.name)
+    #                 FROM moviedb.movie_list mList
+    #                 JOIN moviedb.list li ON mList.id_list = li.id
+    #                 where li.type = 0
+    #                 group by mList.id_movie""")
+    # res = cur.fetchall()
+    # mysql.connection.commit()
+    # movies = pd.DataFrame(res, columns=['movieId','genres'])
+    # cur.close()
+
+    genre_df = fetch_data.genre(cur)
+    print(genre_df)
     
-    movies['genres'] = movies['genres'].apply(lambda x: x.split(","))
+    genre_df['genres'] = genre_df['genres'].apply(lambda x: x.split(","))
     
-    genres_counts = Counter(g for genres in movies['genres'] for g in genres)
+    genres_counts = Counter(g for genres in genre_df['genres'] for g in genres)
     
     genres = list(genres_counts.keys())
 
     for g in genres:
-        movies[g] = movies['genres'].transform(lambda x: int(g in x))
+        genre_df[g] = genre_df['genres'].transform(lambda x: int(g in x))
     
-    cosine_sim = cosine_similarity(movies[genres], movies[genres])
+    cosine_sim = cosine_similarity(genre_df[genres], genre_df[genres])
     print(f"Dimensions of our movie features cosine similarity matrix: {cosine_sim.shape}")
     
-    return movies[genres]
+    return genre_df[genres]
 
 def check_new_user(movie_ids):
     return len(movie_ids) < 20
 
-def get_movie_ids_from_db(mysql, id):
-    cur = mysql.connection.cursor()
+def get_movie_ids_from_db(cur, id):
     cur.execute("""SELECT id_user ,GROUP_CONCAT(id_movie) FROM moviedb.interactive WHERE id_user = %s AND is_clicked <> 0""",(id,))
     res = cur.fetchall()
-    mysql.connection.commit()
     cur.close()
 
     res = res[0][1]
@@ -69,19 +71,10 @@ def get_content_based_recommendations(idx,cosine_sim, n_recommendations=10):
     
     return similar_movies
 
-def get_recommend_list(list_item_ids,n_recommendations, mysql):
-    cosine_sim_mtrx = cosine_sim(get_genre(mysql))
+def get_recommend_list(list_item_ids,n_recommendations, cur):
+    cosine_sim_mtrx = cosine_sim(get_genre(cur))
     res = get_content_based_recommendations(list_item_ids, cosine_sim_mtrx, n_recommendations)
     return res
-
-def get_rating_data_from_db(mysql):
-    cur = mysql.connection.cursor()
-    cur.execute("""SELECT id_user, id_movie, rating FROM moviedb.interactive""")
-    res = cur.fetchall()
-    mysql.connection.commit()
-    training_df = pd.DataFrame(res, columns=['id_user', 'id_movie', 'rating'])
-    training_df=training_df.dropna()
-    return training_df
 
 def create_X(df):
     """
@@ -143,6 +136,6 @@ def find_similar_movies(movie_id,k, ratings, metric='cosine', show_distance=Fals
         n = neighbour.item(i)
         neighbour_ids.append(movie_inv_mapper[n])
     neighbour_ids.pop(0)
-    print(type(neighbour_ids))
-    print(neighbour_ids)
+    # print(type(neighbour_ids))
+    # print(neighbour_ids)
     return neighbour_ids

@@ -29,13 +29,13 @@ mysql = MySQL(app)
 @app.route('/', methods=['GET'])
 def home():
 
-    ratings = cold_start.get_rating_data_from_db(mysql)
-    similar_ids = cold_start.find_similar_movies(1, k=20, ratings=ratings)
+    # ratings = cold_start.get_rating_data_from_db(mysql)
+    # similar_ids = cold_start.find_similar_movies(1, k=20, ratings=ratings)
 
-    results = pd.DataFrame(similar_ids, columns=['id']).to_dict('records')
-    # return """<h1>Movie recommend engine</h1>
-    #           <p>This site is APIs for getting list of recommend movies.</p>"""
-    return jsonify(results)
+    # results = pd.DataFrame(similar_ids, columns=['id']).to_dict('records')
+    return """<h1>Movie recommend engine</h1>
+              <p>This site is APIs for getting list of recommend movies.</p>"""
+    # return jsonify(results)
 
 @app.route('/individual/state1/', methods=['GET'])
 def individual_recommend_list_state1():
@@ -44,26 +44,23 @@ def individual_recommend_list_state1():
     else:
         return "Error: No id field provided. Please specify an id."
     
-    mov_ids = cold_start.get_movie_ids_from_db(mysql,id_user)
+    cur = mysql.connection.cursor()
+    mov_ids = cold_start.get_movie_ids_from_db(cur,id_user)
+    cur.close()
+
+    cur = mysql.connection.cursor()
     if cold_start.check_new_user(mov_ids):
         print("New user detected!")
-        rec_list = cold_start.get_recommend_list(mov_ids,10,mysql)
+        rec_list = cold_start.get_recommend_list(mov_ids,10,cur)
+        cur.close()
     else:
         print("Old user detected!")
-
-        # start = time.time()
-        #training, user = state1.fetch_data(mysql, id_user)
-        cur = mysql.connection.cursor()
         click_df = fetch_data.rating_click_df(cur)
         sim_df = fetch_data.similarity_df(cur,id_user)
         cur.close()
-        # end = time.time()
-        # print("elapse time: ", end-start)
 
-        # start = time.time()
         rec_list = state1.recommend_sys(id_user, 10, click_df, sim_df)
-        # end = time.time()
-        # print("elapse time: ", end-start)
+
 
     results = pd.DataFrame(rec_list, columns=['id']).to_dict('records')
 
@@ -102,54 +99,51 @@ def group_recommend_list_state1():
 
     return jsonify(results)
 
+def indv_state2_new_user(id_user):
+    cur = mysql.connection.cursor()
+    ratings = fetch_data.rating_watchtime_df(cur)
+    cur.close()
+    
+    similar_ids = cold_start.find_similar_movies(id_user, k=10, ratings=ratings)
+    return similar_ids
+
+
+def indv_state2_old_user(id_user):
+    cur = mysql.connection.cursor()
+    rec_sys = RecSys(cur)
+    cur.close()
+
+    user = [id_user]
+    candidate_items = Group.find_candidate_items(rec_sys.ratings,user)
+    idv = Group(user, candidate_items, rec_sys.ratings)
+
+    cur = mysql.connection.cursor()
+    rec_sys.idv_recommend(cur, idv)
+    cur.close()
+
+    rec_list = idv.reco_list[:10]
+    return rec_list
+
+
 @app.route('/individual/state2/', methods=['GET']) # /idividual/state2?id=10
 def individual_recommend_list_state2():
     if 'id' in request.args:
         id_user = int(request.args['id'])
     else:
         return "Error: No id field provided. Please specify an id."
+
     cur = mysql.connection.cursor()
-    
-    # Get data of user factor:
-    user_factor = fetch_data.user_factor(cur, id_user)
-
-    # Get data of item factors
-    movie_factor = fetch_data.item_factor(cur)
-   
-    # Get data of user bias
-    user_bias = fetch_data.user_bias(cur, id_user)
-    
-    # Get data of movie bias
-    movie_bias = fetch_data.item_bias(cur)
-    
-    # Get data of global rating mean:
-    global_mean_rating = fetch_data.global_rating_mean(cur)
-    
-    # Get rating datas:
-    training_df = fetch_data.rating_watchtime_df(cur)
-    ratings = utils.convert_data_to_array(training_df)
-   
-    # Get candidate items:
-    candidate_movie = utils.find_candidate_items(ratings, [id_user])
-    # print("candidate: ", candidate_movie.shape)
-
-    # Get recommend list:
-    group_candidate_ratings = {}
-    for idx, item in enumerate(candidate_movie):
-        cur_rating = utils.predict_user_rating(user_factor, movie_factor[item-1], user_bias, movie_bias[item-1], global_mean_rating)
-
-        group_candidate_ratings[item] = cur_rating
-
-    group_candidate_ratings = sorted(group_candidate_ratings.items(), key=lambda x: x[1], reverse=True)
-
-    rec_list = np.array([rating_tuple[0] for rating_tuple in group_candidate_ratings])
-    
-
-    rec_list = rec_list[:10]
-    # print('result: ', result[:10])
-    # result = [2,6]
-    results = pd.DataFrame(rec_list, columns=['id']).to_dict('records')
+    mov_ids = cold_start.get_movie_ids_from_db(cur,id_user)
     cur.close()
+
+    if cold_start.check_new_user(mov_ids):
+        print("New user detected!")
+        rec_list = indv_state2_new_user(id_user)
+    else:
+        print("old user detected!")
+        rec_list = indv_state2_old_user(id_user)
+
+    results = pd.DataFrame(rec_list, columns=['id']).to_dict('records')
 
     return jsonify(results)
 
@@ -160,18 +154,17 @@ def group_recommend_list_state2():
     else:
         return "Error: No id field provided. Please specify an id."
     
-    rec_sys = RecSys(mysql)
+    cur = mysql.connection.cursor()
+    rec_sys = RecSys(cur)
+    cur.close()
 
     group_members = list(map(int, group_members))
     candidate_items = Group.find_candidate_items(rec_sys.ratings, group_members)
     gr = Group(group_members, candidate_items, rec_sys.ratings)
-    rec_sys.bf_runner(gr)
-    # print('Group recommended list:', gr.reco_list_bf[:10])
     
-    cur = mysql.connection.cursor()
-    rec_list = gr.reco_list_bf[:10]
+    rec_sys.bf_runner(gr)
+    rec_list = gr.reco_list[:10]
     results = pd.DataFrame(rec_list, columns=['id']).to_dict('records')
-    cur.close()
 
     return jsonify(results)
 app.run()

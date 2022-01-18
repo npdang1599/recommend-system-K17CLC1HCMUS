@@ -46,7 +46,7 @@ def user_factor(cur, user_id):
 def item_factor(cur):
     cur.execute("""SELECT * FROM moviedb.movie_factors """)
     res = cur.fetchall()
-    res = [ele[1:] for ele in res]
+    res = [ele[1:] for ele in res] 
     movie_factor = np.asarray(res, dtype= float)
     return movie_factor
 
@@ -107,6 +107,11 @@ def movie_director_actor(cur, list_item_id):
     return pd.DataFrame(res, columns=['id','director','actor'])
 
 
+# genre function: fetch data of movie genre from the database
+# Input:
+# + cur: mysql cursor
+# Output:
+# + pandas dataframe of movie genre with 2 cols movieID and genres
 def genre(cur):
     cur.execute("""SELECT mList.id_movie, group_concat( li.name)
                     FROM moviedb.movie_list mList
@@ -116,3 +121,4 @@ def genre(cur):
     res = cur.fetchall()
     movies = pd.DataFrame(res, columns=['movieId','genres'])
     return movies
+

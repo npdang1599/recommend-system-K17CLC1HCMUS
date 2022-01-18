@@ -12,9 +12,9 @@ class Group:
         
         self.ratings_per_member = [np.size(ratings[member].nonzero()) for member in self.members]
 
-        self.grp_factors_bf = []
-        self.bias_bf = 0
-        self.reco_list_bf = []
+        self.grp_factors = []
+        self.bias = 0
+        self.reco_list = []
         
 
 @staticmethod
