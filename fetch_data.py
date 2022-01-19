@@ -1,4 +1,3 @@
-from random import triangular
 import pandas as pd
 import numpy as np
 
@@ -23,7 +22,7 @@ def similarity_df(cur, user_id):
     cur.execute("""SELECT id_user_2, similarity FROM moviedb.jaccard_similarity WHERE id_user_1 = %s""", (user_id,))
     res = cur.fetchall()
     similarity_df = pd.DataFrame(res, columns=['id_user_2', 'similarity'])
-    print("similarity_df: ", similarity_df)
+    # print("similarity_df: ", similarity_df)
     return similarity_df
 
 # user_factor fuction: fetch user's factors data from the database
@@ -106,6 +105,18 @@ def movie_director_actor(cur, list_item_id):
     res = cur.fetchall()
     return pd.DataFrame(res, columns=['id','director','actor'])
 
+
+# movie_direction_actor function: fetch data of movies' director, actor from the database
+# Input: 
+# + cur: mysql cursor
+# + list_item_id: List of item ids
+# Output:
+# + dataframe contain id of movies and information of their directors and actors
+def movie_decription(cur):
+    cur.execute("""SELECT id, decription FROM moviedb.movie""")
+    res = cur.fetchall()
+    return pd.DataFrame(res, columns=['id','documents']) 
+
 # genre function: fetch data of movie genre from the database
 # Input:
 # + cur: mysql cursor
@@ -120,3 +131,4 @@ def genre(cur):
     res = cur.fetchall()
     movies = pd.DataFrame(res, columns=['movieId','genres'])
     return movies
+

@@ -1,9 +1,12 @@
+from re import X
+from unittest import result
 from recommend_system import RecSys
 import pandas as pd
 import MySQLdb
+import description_sim
 
-def get_MF_data(RecSys):
-    conn = MySQLdb.connect(host="66.42.59.144", user="lucifer", passwd="12344321", db="moviedb")
+def get_MF_data(RecSys, conn):
+    
 
     # user_factors
     df = pd.DataFrame(RecSys.user_factors)
@@ -76,10 +79,27 @@ def upsert(conn, table, fields, object_list):
     conn.commit()
     print(table + ' upserts successfully')
 
+
+def description_sim_matrix(conn):
+    cur = conn.cursor()
+    documents_df = description_sim.description_prepare(cur)
+    # print("doc :", documents_df)
+    result = description_sim.description_similarities(documents_df)
+
+    return documents_df, result
+
+
 def main():
-    gr = RecSys()
-    gr.sgd_factorize()
-    get_MF_data(gr)
+    conn = MySQLdb.connect(host="66.42.59.144", user="lucifer", passwd="12344321", db="moviedb")
+    # gr = RecSys(conn)
+    # gr.sgd_factorize()
+    # get_MF_data(gr)
+    doc,x = description_sim_matrix(conn)
+
+    for i in doc['id']:
+        sim_df = description_sim.most_similar(i, x,doc)
+        print(sim_df)
+    conn.close()
 
     
 if __name__ == "__main__":

@@ -12,7 +12,7 @@ import MySQLdb
 # Input;
 # + rating_click_df: click data of user-movie interactive in the form of pandas dataframe with 3 cols (user_id, movie_id, click)
 # Output:
-# + list of Jaccard similarity scores dataframe 2 cols (user_2_id, sim)
+# + list of Jaccard similarity scores dataframe 2 cols (user_2_id, sim)y
 def get_list_sim(rating_click_df, first_user, last_user):
     
     df_list=[]
@@ -30,7 +30,7 @@ def get_list_sim(rating_click_df, first_user, last_user):
 #first - người dùng bắt đầu vòng lặp, last - người dùng kết thúc vòng lặp 
 #Output:
 #file excel chứa độ tương đồng của các người dùng
-def recal_sim(df_list, gamma, k, path, first, last):
+def recal_sim(df_list, gamma, k, first, last):
   
   #Vòng lặp người dùng 
   for i in range(first - 1, last, 1):

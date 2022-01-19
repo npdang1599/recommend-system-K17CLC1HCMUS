@@ -49,9 +49,11 @@ class RecSys:
 def read_data(self, cur):    
 
     training_data = fetch_data.rating_watchtime_df(cur)
+    print('shape: ', training_data.shape)
 
     # Change training_data dataframe to an array of data for calculation purposes
     num_users = max(training_data.id_user.unique())
+    print("num_user: ", num_users)
     num_items = max(training_data.id_movie.unique())
 
     self.ratings = np.zeros((num_users, num_items))
@@ -66,11 +68,13 @@ def read_data(self, cur):
     cur.close()
 RecSys.read_data = read_data
 
+
 def predict_user_rating(self, user, item):
     prediction = self.ratings_global_mean + user.bias + self.item_biases[item]
     prediction += user.grp_factors.dot(self.item_factors[item, :].T)
     return prediction
 RecSys.predict_user_rating = predict_user_rating
+
 
 def idv_recommend(self,cur, user):
 
@@ -91,12 +95,12 @@ def idv_recommend(self,cur, user):
     user.reco_list = np.array([rating_tuple[0] for rating_tuple in idv_candidate_ratings])
 RecSys.idv_recommend = idv_recommend
 
-
 def predict_group_rating(self, group, item):
     factors = group.grp_factors; bias_group = group.bias
     return self.ratings_global_mean + bias_group + self.item_biases[item] \
                                     + np.dot(factors.T, self.item_factors[item])
 RecSys.predict_group_rating = predict_group_rating
+
 
 def bf_runner(self, group):
     # aggregate user ratings into virtual group

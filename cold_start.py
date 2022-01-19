@@ -21,7 +21,7 @@ def get_genre(cur):
     # cur.close()
 
     genre_df = fetch_data.genre(cur)
-    print(genre_df)
+    # print(genre_df)
     
     genre_df['genres'] = genre_df['genres'].apply(lambda x: x.split(","))
     
@@ -66,7 +66,7 @@ def get_content_based_recommendations(idx,cosine_sim, n_recommendations=10):
         sim_scores.extend(tmp)
     sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
     sim_scores = sim_scores[1:(n_recommendations+1)]
-    print("sim_scores: ", sim_scores)
+    # print("sim_scores: ", sim_scores)
     similar_movies = [i[0] for i in sim_scores]
     
     return similar_movies

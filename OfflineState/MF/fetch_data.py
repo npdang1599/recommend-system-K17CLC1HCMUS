@@ -122,3 +122,14 @@ def genre(cur):
     movies = pd.DataFrame(res, columns=['movieId','genres'])
     return movies
 
+
+# movie_direction_actor function: fetch data of movies' director, actor from the database
+# Input: 
+# + cur: mysql cursor
+# + list_item_id: List of item ids
+# Output:
+# + dataframe contain id of movies and information of their directors and actors
+def movie_decription(cur):
+    cur.execute("""SELECT id, description FROM moviedb.movie""")
+    res = cur.fetchall()
+    return pd.DataFrame(res, columns=['id','documents']) 
