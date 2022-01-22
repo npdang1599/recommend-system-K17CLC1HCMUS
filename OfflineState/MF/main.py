@@ -91,14 +91,14 @@ def description_sim_matrix(conn):
 
 def main():
     conn = MySQLdb.connect(host="66.42.59.144", user="lucifer", passwd="12344321", db="moviedb")
-    # gr = RecSys(conn)
-    # gr.sgd_factorize()
-    # get_MF_data(gr)
-    doc,x = description_sim_matrix(conn)
+    gr = RecSys()
+    gr.sgd_factorize()
+    get_MF_data(gr, conn)
+    # doc,x = description_sim_matrix(conn)
 
-    for i in doc['id']:
-        sim_df = description_sim.most_similar(i, x,doc)
-        print(sim_df)
+    # for i in doc['id']:
+    #     sim_df = description_sim.most_similar(i, x,doc)
+    #     print(sim_df)
     conn.close()
 
     

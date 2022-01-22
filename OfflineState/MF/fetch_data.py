@@ -89,7 +89,7 @@ def global_rating_mean(cur ):
 # Input: mysql cursor
 # Output: dataframe of watching time data
 def rating_watchtime_df(cur):
-    cur.execute("""SELECT id_user, id_movie, rating FROM moviedb.interactive""")
+    cur.execute("""SELECT id_user, id_movie, time_watched FROM moviedb.interactive WHERE time_watched > 0""")
     res = cur.fetchall()
     training_df = pd.DataFrame(res, columns=['id_user', 'id_movie', 'rating'])
     training_df = training_df.dropna()

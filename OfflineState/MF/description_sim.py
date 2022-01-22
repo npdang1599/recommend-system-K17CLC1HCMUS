@@ -51,3 +51,5 @@ def description_similarities(documents_df):
 # pairwise_differences=euclidean_distances(document_embeddings)
 # most_similar(0,pairwise_similarities,'Cosine Similarity')
 # most_similar(0,pairwise_differences,'Euclidean Distance')
+
+ 

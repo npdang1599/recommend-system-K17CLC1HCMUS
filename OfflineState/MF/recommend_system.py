@@ -11,7 +11,7 @@ np.seterr(over='raise')
 
 class RecSys:
     def __init__(self):
-        self.cfg = group.Config(r"./config/config.conf")
+        self.cfg = group.Config(r"C:/Study/RSApi/recommend-system-K17CLC1HCMUS/OfflineState/MF/config/config.conf")
         
         # training and testing matrices
         self.ratings = None

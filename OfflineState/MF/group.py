@@ -23,13 +23,7 @@ class Config:
 
         configParser = configparser.RawConfigParser()
         configParser.read(config_file_path)
-        
-        #movie lens 100k dataset, 80 - 20 train/test ratio, present in data directory
-        self.training_file = configParser.get('Config', 'training_file')
-        self.testing_file = configParser.get('Config', 'testing_file')
-        self.items_info_file = configParser.get('Config', 'items_info_file')
 
-        self.movie_type = configParser.get('Config', 'type_filter')
 
         self.max_iterations_mf = int(configParser.get('Config', 'max_iterations_mf'))
         self.lambda_mf = float(configParser.get('Config', 'lambda_mf'))
