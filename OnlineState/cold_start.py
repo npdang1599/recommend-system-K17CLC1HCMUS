@@ -1,4 +1,3 @@
-import pandas as pd
 from collections import Counter
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.neighbors import NearestNeighbors
@@ -8,23 +7,11 @@ import fetch_data
 
 # get_genre fuction: get genre data of movies
 def get_genre(cur):
-    # cur = mysql.connection.cursor()
-
-    # cur.execute("""SELECT mList.id_movie, group_concat( li.name)
-    #                 FROM moviedb.movie_list mList
-    #                 JOIN moviedb.list li ON mList.id_list = li.id
-    #                 where li.type = 0
-    #                 group by mList.id_movie""")
-    # res = cur.fetchall()
-    # mysql.connection.commit()
-    # movies = pd.DataFrame(res, columns=['movieId','genres'])
-    # cur.close()
 
     genre_df = fetch_data.genre(cur)
     # print(genre_df)
     
     genre_df['genres'] = genre_df['genres'].apply(lambda x: x.split(","))
-    
     genres_counts = Counter(g for genres in genre_df['genres'] for g in genres)
     
     genres = list(genres_counts.keys())
@@ -32,8 +19,8 @@ def get_genre(cur):
     for g in genres:
         genre_df[g] = genre_df['genres'].transform(lambda x: int(g in x))
     
-    cosine_sim = cosine_similarity(genre_df[genres], genre_df[genres])
-    print(f"Dimensions of our movie features cosine similarity matrix: {cosine_sim.shape}")
+    # cosine_sim = cosine_similarity(genre_df[genres], genre_df[genres])
+    # print(f"Dimensions of our movie features cosine similarity matrix: {cosine_sim.shape}")
     
     return genre_df[genres]
 
@@ -43,7 +30,6 @@ def check_new_user(movie_ids):
 def get_movie_ids_from_db(cur, id):
     cur.execute("""SELECT id_user ,GROUP_CONCAT(id_movie) FROM moviedb.interactive WHERE id_user = %s AND is_clicked <> 0""",(id,))
     res = cur.fetchall()
-    cur.close()
 
     res = res[0][1]
     ids = res.split(',')

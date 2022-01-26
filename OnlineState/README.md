@@ -15,3 +15,17 @@ return recommend list of movies for a list of input user base on implicit feedba
 
 4. URL: /group/state2?id_user= ... & id_user= ... & ... & id_movie= ...
 return recommend list from groupMF algorithm, if group is all new user, list movie comes from item-item algorithm 
+
+-----------------------------------RECOMMEND ALGORITHMS:----------------------------------
+
+Algorithms use in recommend system:
+- new_user: K-nearest neighbor
+- individual:
+	+ state 1: KRNN base on user's click data
+	+ state 2: matrix fractorization base on watching time data
+		filter by: genres, description
+
+- group:
+	+ state 1: join each member's recommend result from individual state 1
+	+ state 2: matrix fractorization for group: before fractorizarion method base on users' watching time data
+		filter by: genres, description

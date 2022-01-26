@@ -1,8 +1,5 @@
-from group import Group
-from config import Config
-
+from GroupMF_config import Config
 import numpy as np
-import pandas as pd
 import warnings
 import fetch_data
 
@@ -47,7 +44,6 @@ class RecSys:
  
 
 def read_data(self, cur):    
-
     training_data = fetch_data.rating_watchtime_df(cur)
     # print('training_data: ', training_data)
 
@@ -78,9 +74,9 @@ RecSys.predict_user_rating = predict_user_rating
 
 def idv_recommend(self,cur, user):
 
-    print("user: ", user.members[0])
+    # print("user: ", user.members[0])
     user.grp_factors = fetch_data.user_factor(cur, user.members[0])
-    print(user.grp_factors)
+    # print(user.grp_factors)
     user.bias = fetch_data.user_bias(cur, user.members[0])
 
     idv_candidate_ratings = {}

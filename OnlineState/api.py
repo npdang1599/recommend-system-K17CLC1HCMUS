@@ -1,18 +1,15 @@
-import group
-from group import Group
-import numpy as np
+from GroupMF_group import Group
 import pandas as pd
-import math
 import flask
 from flask import request, jsonify
 from flask_mysqldb import MySQL
-import utils
-from recommend_engine import RecSys
+from GroupMF_recommend_engine import RecSys
 import time
 import cold_start
 from flask_cors import CORS
-import state1
+import KRNN
 import fetch_data
+import utils
 
 app = flask.Flask(__name__)
 CORS(app)
@@ -27,14 +24,8 @@ mysql = MySQL(app)
 
 @app.route('/', methods=['GET'])
 def home():
-
-    # ratings = cold_start.get_rating_data_from_db(mysql)
-    # similar_ids = cold_start.find_similar_movies(1, k=20, ratings=ratings)
-
-    # results = pd.DataFrame(similar_ids, columns=['id']).to_dict('records')
     return """<h1>Movie recommend engine</h1>
               <p>This site is APIs for getting list of recommend movies.</p>"""
-    # return jsonify(results)
 
 def individual_recommend_list_state1(id_user):
     cur = mysql.connection.cursor()
@@ -54,7 +45,7 @@ def individual_recommend_list_state1(id_user):
         sim_df = fetch_data.similarity_df(cur,id_user)
         cur.close()
 
-        rec_df, rec_list = state1.recommend_sys(id_user, 10, click_df, sim_df)
+        rec_df, rec_list = KRNN.recommend_sys(id_user, 10, click_df, sim_df)
     
     return rec_df, rec_list
 
@@ -67,9 +58,12 @@ def individual_state1_api():
     
     results_with_sim, rec_list = individual_recommend_list_state1(id_user)
 
-    results = pd.DataFrame(rec_list, columns=['id']).to_dict('records')
-    print(results_with_sim)
-    return jsonify(results)
+    # results = pd.DataFrame(rec_list, columns=['id']).to_dict('records')
+
+    result = utils.display_results(mysql, rec_list)
+    # return jsonify(results)
+    
+    return jsonify(result)
 
 @app.route('/group/state1/', methods=['GET'])
 def group_recommend_list_state1():
@@ -101,10 +95,11 @@ def group_recommend_list_state1():
     result=result.sort_values(['User_count','Rating'], ascending=[False, False])
     
     rec_list = result['Item'].to_list()[0:10]
-    results = pd.DataFrame(rec_list, columns=['id']).to_dict('records')
+    
     cur.close()
+    result = utils.display_results(mysql, rec_list)
 
-    return jsonify(results)
+    return jsonify(result)
 
 def indv_state2_new_user(id_movie):
     cur = mysql.connection.cursor()
@@ -149,9 +144,9 @@ def individual_recommend_list_state2():
         print("old user detected!")
         rec_list = indv_state2_old_user(id_user)
 
-    results = pd.DataFrame(rec_list, columns=['id']).to_dict('records')
+    result = utils.display_results(mysql, rec_list)
 
-    return jsonify(results)
+    return jsonify(result)
 
 @app.route('/group/state2/', methods=['GET'])
 def group_recommend_list_state2():
@@ -167,6 +162,7 @@ def group_recommend_list_state2():
     cur = mysql.connection.cursor()
     for id_user in group_members:
         print(id_user)
+
         mov_ids = cold_start.get_movie_ids_from_db(cur,id_user)
         if cold_start.check_new_user(mov_ids):
             print("New user detected!")
@@ -186,7 +182,7 @@ def group_recommend_list_state2():
         
         rec_sys.bf_runner(gr)
         rec_list = gr.reco_list[:10]
-        
-    results = pd.DataFrame(rec_list, columns=['id']).to_dict('records')
-    return jsonify(results)
+    
+    result = utils.display_results(mysql, rec_list)
+    return jsonify(result)
 app.run()
