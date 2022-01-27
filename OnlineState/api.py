@@ -175,7 +175,7 @@ def group_recommend_list_state2():
     cur.close()
 
     if len(group_members) == 0:
-        rec_list = indv_state2_new_user(id_movie)
+        rec_list = indv_state2_new_user(id_movie, n_movie)
     else: 
         cur = mysql.connection.cursor()
         rec_sys = RecSys(cur)
