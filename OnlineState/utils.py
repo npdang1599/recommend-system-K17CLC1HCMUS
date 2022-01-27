@@ -1,11 +1,12 @@
 import numpy as np
 import pandas as pd
+from scipy.sparse import csr_matrix
+
 def predict_user_rating(user_factor, item_factor, user_bias, item_bias, rating_global_mean):
     prediction = rating_global_mean + user_bias + item_bias
     prediction +=  user_factor.dot(item_factor.T)
     return prediction
 
-# Attention!!!!
 def convert_data_to_array(training_data):
     num_users = max(training_data.id_user.unique())
     num_items = max(training_data.id_movie.unique())
@@ -39,5 +40,34 @@ def display_results(mysql,list_item_id):
     # return pd.DataFrame(res, columns=['id','movie_title','director','decription']).to_dict('records')
     
 
+def create_X(df):
+    """
+    Generates a sparse matrix from ratings dataframe.
+    
+    Args:
+        df: pandas dataframe
+    
+    Returns:
+        X: sparse matrix
+        user_mapper: dict that maps user id's to user indices
+        user_inv_mapper: dict that maps user indices to user id's
+        movie_mapper: dict that maps movie id's to movie indices
+        movie_inv_mapper: dict that maps movie indices to movie id's
+    """
+    
+    df.columns = ['userId','movieId','rating']
+    N = df['userId'].nunique()
+    M = df['movieId'].nunique()
 
+    user_mapper = dict(zip(np.unique(df["userId"]), list(range(N))))
+    movie_mapper = dict(zip(np.unique(df["movieId"]), list(range(M))))
+    
+    user_inv_mapper = dict(zip(list(range(N)), np.unique(df["userId"])))
+    movie_inv_mapper = dict(zip(list(range(M)), np.unique(df["movieId"])))
+    
+    user_index = [user_mapper[i] for i in df['userId']]
+    movie_index = [movie_mapper[i] for i in df['movieId']]
 
+    X = csr_matrix((df["rating"], (movie_index, user_index)), shape=(M, N))
+    
+    return X, user_mapper, movie_mapper, user_inv_mapper, movie_inv_mapper

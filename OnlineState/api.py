@@ -7,7 +7,7 @@ from GroupMF_recommend_engine import RecSys
 import time
 import cold_start
 from flask_cors import CORS
-import KRNN
+import KRNN_recommend_engine
 import fetch_data
 import utils
 
@@ -27,7 +27,7 @@ def home():
     return """<h1>Movie recommend engine</h1>
               <p>This site is APIs for getting list of recommend movies.</p>"""
 
-def individual_recommend_list_state1(id_user):
+def individual_recommend_list_state1(id_user, n_movie):
     cur = mysql.connection.cursor()
     mov_ids = cold_start.get_movie_ids_from_db(cur,id_user)
     cur.close()
@@ -35,7 +35,7 @@ def individual_recommend_list_state1(id_user):
     cur = mysql.connection.cursor()
     if cold_start.check_new_user(mov_ids):
         print("New user detected!")
-        rec_list = cold_start.get_recommend_list(mov_ids,10,cur)
+        rec_list = cold_start.get_recommend_list(mov_ids,n_movie,cur)
         rec_df = pd.DataFrame({'Item':rec_list})
         rec_df['Rating'] = 0
         cur.close()
@@ -45,18 +45,20 @@ def individual_recommend_list_state1(id_user):
         sim_df = fetch_data.similarity_df(cur,id_user)
         cur.close()
 
-        rec_df, rec_list = KRNN.recommend_sys(id_user, 10, click_df, sim_df)
+        rec_df, rec_list = KRNN_recommend_engine.recommend_sys(id_user, n_movie, click_df, sim_df)
     
     return rec_df, rec_list
 
 @app.route('/individual/state1/', methods=['GET'])
 def individual_state1_api():
-    if 'id_user' in request.args:
+    if 'id_user' and 'n_movie' in request.args:
         id_user = int(request.args['id_user'])
+        n_movie = int(request.args['n_movie'])
+
     else:
         return "Error: No id field provided. Please specify an id."
     
-    results_with_sim, rec_list = individual_recommend_list_state1(id_user)
+    results_with_sim, rec_list = individual_recommend_list_state1(id_user,n_movie)
 
     # results = pd.DataFrame(rec_list, columns=['id']).to_dict('records')
 
@@ -67,8 +69,9 @@ def individual_state1_api():
 
 @app.route('/group/state1/', methods=['GET'])
 def group_recommend_list_state1():
-    if 'id_user' in request.args:
+    if 'id_user' and 'n_movie' in request.args:
         user_ids = request.args.getlist("id_user")
+        n_movie = int(request.args['n_movie'])
     else:
         return "Error: No id field provided. Please specify an id."
     
@@ -80,7 +83,7 @@ def group_recommend_list_state1():
         # user_df = fetch_data.similarity_df(cur,i)
         
         # i_tmp, i_r_tmp = state1.recommend_sys(int(user_ids[i]), 10, training_df, user_df)
-        rec_list_idv_df, rec_list_idv = individual_recommend_list_state1(int(user_ids[i]))
+        rec_list_idv_df, rec_list_idv = individual_recommend_list_state1(int(user_ids[i]),n_movie)
         df = df.append([rec_list_idv_df])
     # print("df: ", df)
    
@@ -94,22 +97,22 @@ def group_recommend_list_state1():
         result= result.append(new_gen, ignore_index=True)
     result=result.sort_values(['User_count','Rating'], ascending=[False, False])
     
-    rec_list = result['Item'].to_list()[0:10]
+    rec_list = result['Item'].to_list()[0:n_movie]
     
     cur.close()
     result = utils.display_results(mysql, rec_list)
 
     return jsonify(result)
 
-def indv_state2_new_user(id_movie):
+def indv_state2_new_user(id_movie,n_movie):
     cur = mysql.connection.cursor()
     ratings = fetch_data.rating_watchtime_df(cur)
     cur.close()
     
-    similar_ids = cold_start.find_similar_movies(id_movie, k=10, ratings=ratings)
+    similar_ids = cold_start.find_similar_movies(id_movie, k=n_movie, ratings=ratings)
     return similar_ids
 
-def indv_state2_old_user(id_user):
+def indv_state2_old_user(id_user, n_movie):
     cur = mysql.connection.cursor()
     rec_sys = RecSys(cur)
     cur.close()
@@ -122,14 +125,15 @@ def indv_state2_old_user(id_user):
     rec_sys.idv_recommend(cur, idv)
     cur.close()
 
-    rec_list = idv.reco_list[:10]
+    rec_list = idv.reco_list[:n_movie]
     return rec_list
 
 @app.route('/individual/state2/', methods=['GET']) # /idividual/state2?id=10
 def individual_recommend_list_state2():
-    if 'id_user' and 'id_movie' in request.args:
+    if 'id_user' and 'id_movie' and 'n_movie' in request.args:
         id_user = int(request.args['id_user'])
         id_movie = int(request.args['id_movie'])
+        n_movie = int(request.args['n_movie'])
     else:
         return "Error: No id field provided. Please specify an id."
 
@@ -139,10 +143,10 @@ def individual_recommend_list_state2():
 
     if cold_start.check_new_user(mov_ids):
         print("New user detected!")
-        rec_list = indv_state2_new_user(id_movie)
+        rec_list = indv_state2_new_user(id_movie,n_movie)
     else:
         print("old user detected!")
-        rec_list = indv_state2_old_user(id_user)
+        rec_list = indv_state2_old_user(id_user,n_movie)
 
     result = utils.display_results(mysql, rec_list)
 
@@ -150,9 +154,10 @@ def individual_recommend_list_state2():
 
 @app.route('/group/state2/', methods=['GET'])
 def group_recommend_list_state2():
-    if 'id_user' and 'id_movie' in request.args:
+    if 'id_user' and 'id_movie' and 'n_movie' in request.args:
             group_members = request.args.getlist("id_user")
             id_movie = int(request.args['id_movie'])
+            n_movie = int(request.args['n_movie'])
     else:
         return "Error: No id field provided. Please specify an id."
     
@@ -181,7 +186,7 @@ def group_recommend_list_state2():
         gr = Group(group_members, candidate_items, rec_sys.ratings)
         
         rec_sys.bf_runner(gr)
-        rec_list = gr.reco_list[:10]
+        rec_list = gr.reco_list[:n_movie]
     
     result = utils.display_results(mysql, rec_list)
     return jsonify(result)
