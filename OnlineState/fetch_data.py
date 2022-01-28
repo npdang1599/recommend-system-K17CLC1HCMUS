@@ -132,3 +132,17 @@ def genre(cur):
     movies = pd.DataFrame(res, columns=['movieId','genres'])
     return movies
 
+
+# genre function: fetch data of movie's discription similarity from the database
+# Input:
+# + cur: mysql cursor
+# + movie_id: id of the movie needed to calc movies' similarity score with
+# Output:
+# + pandas dataframe of movie similarity with 2 cols movieID and similarity
+def description_similarity(cur, movie_id):
+    cur.execute("""SELECT id_movie_2,similarity
+            FROM moviedb.description_similarity
+            WHERE similarity > 0 AND id_movie_1 = %s
+            ORDER BY similarity DESC;""",(movie_id,))
+    res = cur.fetchall()
+    return pd.DataFrame(res, columns=['id','similarity']) 

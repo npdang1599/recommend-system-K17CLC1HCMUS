@@ -5,7 +5,7 @@ return recommend list of movies for an input user base on implicit feedback clic
     - if is new user: base on ids of the movie user has just chosen from the survey and apply content-based recommend algorithm based on movies' genre to find relevant movies
     - if not new user: apply K-RNN algorithm based on implicit feedback click
 
-2. URL: /individual/state2?id_user= ... &n_movie= ... &id_movie= ... 
+2. URL: /individual/state2?id_user= ... &n_movie= ... &id_movie= ... &filter= (description, genre, default)
 return recommend list of movies for an input user base on implicit feedback time watch (state 2) what api does: Detect user is new user or not:
     - if is new user: base on id of the movie user has just watched and apply item-item content-based recommend system to find relevant movies
     - if not new user: Matrix factorization Col-filtering

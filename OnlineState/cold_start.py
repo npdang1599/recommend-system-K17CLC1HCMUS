@@ -51,15 +51,18 @@ def get_content_based_recommendations(idx,cosine_sim, n_recommendations=10):
 
         sim_scores.extend(tmp)
     sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
+    sim_scores_list = sim_scores[1:(len(sim_scores)+1)]
     sim_scores = sim_scores[1:(n_recommendations+1)]
     # print("sim_scores: ", sim_scores)
     similar_movies = [i[0] for i in sim_scores]
-    return similar_movies
+    return similar_movies, sim_scores_list
+
+
 
 def get_recommend_list(list_item_ids,n_recommendations, cur):
     cosine_sim_mtrx = cosine_sim(get_genre(cur))
-    res = get_content_based_recommendations(list_item_ids, cosine_sim_mtrx, n_recommendations)
-    return res
+    res, res_w_score = get_content_based_recommendations(list_item_ids, cosine_sim_mtrx, n_recommendations)
+    return res, res_w_score
 
 def create_X(df):
     """
