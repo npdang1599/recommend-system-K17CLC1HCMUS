@@ -88,8 +88,9 @@ def idv_recommend(self,cur, user):
     # sort and filter to keep top 'num_recos_bf' recommendations
     idv_candidate_ratings = sorted(idv_candidate_ratings.items(), key=lambda x: x[1], reverse=True)
     # [:self.cfg.num_recos_bf]
-
-    user.reco_list = np.array([rating_tuple[0] for rating_tuple in idv_candidate_ratings])
+    # user.reco_list = np.array([rating_tuple[0] for rating_tuple in idv_candidate_ratings])
+    # print(idv_candidate_ratings)
+    user.reco_list = idv_candidate_ratings
 RecSys.idv_recommend = idv_recommend
 
 def predict_group_rating(self, group, item):

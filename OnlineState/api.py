@@ -1,3 +1,4 @@
+from numpy import rec
 from GroupMF_group import Group
 import pandas as pd
 import flask
@@ -10,6 +11,7 @@ from flask_cors import CORS
 import KRNN_recommend_engine
 import fetch_data
 import utils
+import json
 
 app = flask.Flask(__name__)
 CORS(app)
@@ -27,6 +29,7 @@ def home():
     return """<h1>Movie recommend engine</h1>
               <p>This site is APIs for getting list of recommend movies.</p>"""
 
+# Recommend list for individual user (new user included)
 def individual_recommend_list_state1(id_user, n_movie):
     cur = mysql.connection.cursor()
     mov_ids = cold_start.get_movie_ids_from_db(cur,id_user)
@@ -49,49 +52,52 @@ def individual_recommend_list_state1(id_user, n_movie):
     
     return rec_df, rec_list
 
+
+# Individual state 1 api: cold-start algorithm for new users and KRNN algorithm for old users
 @app.route('/individual/state1/', methods=['GET'])
 def individual_state1_api():
     if 'id_user' and 'n_movie' in request.args:
         id_user = int(request.args['id_user'])
         n_movie = int(request.args['n_movie'])
-
     else:
-        return "Error: No id field provided. Please specify an id."
+        return """Error: No id field provided. Please specify an id.
+                (URL: /individual/state1?id_user= ... &n_movie= ...)
+                """
     
     results_with_sim, rec_list = individual_recommend_list_state1(id_user,n_movie)
-
-    # results = pd.DataFrame(rec_list, columns=['id']).to_dict('records')
-
     result = utils.display_results(mysql, rec_list)
-    # return jsonify(results)
     
     return jsonify(result)
 
+# Group state 1 api: join individual recommend results from Individual state 1's algorithms
 @app.route('/group/state1/', methods=['GET'])
 def group_recommend_list_state1():
     if 'id_user' and 'n_movie' in request.args:
         user_ids = request.args.getlist("id_user")
         n_movie = int(request.args['n_movie'])
     else:
-        return "Error: No id field provided. Please specify an id."
-    
+        return """Error: No id field provided. Please specify an id.
+                (/group/state1?id_user= ... & id_user= ... & ... &n_movie= ...)
+                """
+     
     cur = mysql.connection.cursor()
-    # training_df = fetch_data.rating_click_df(cur)
-   
-    df = pd.DataFrame()
+    # Perform for loop to get results from individual recommend algorithms
+    agg_df = pd.DataFrame()
     for i in range(len(user_ids)):
-        # user_df = fetch_data.similarity_df(cur,i)
-        
-        # i_tmp, i_r_tmp = state1.recommend_sys(int(user_ids[i]), 10, training_df, user_df)
         rec_list_idv_df, rec_list_idv = individual_recommend_list_state1(int(user_ids[i]),n_movie)
-        df = df.append([rec_list_idv_df])
-    # print("df: ", df)
+        agg_df = agg_df.append([rec_list_idv_df])
+    agg_df.columns = ['Item','Rating']
+    # agg_df: Dataframe that is aggregated from indvidual recommend results (two cols: Item and Rating)
    
-    g_items =  pd.DataFrame(df['Item'])
+
+    # Join results: 
+    # + First criteria: the more the items appear in recommend lists of users, the higher pos they will appear in the final result
+    # + Second: the higher Rating score of the item, the higher pos
+    g_items =  pd.DataFrame(agg_df['Item'])
     g_items.drop_duplicates(subset ="Item", keep='first', inplace = True)
     result = pd.DataFrame()
     for index, row in g_items.iterrows():
-        g_r = df[df['Item'] == row['Item']]
+        g_r = agg_df[agg_df['Item'] == row['Item']]
         new_gen = pd.DataFrame(g_r.groupby(['Item'], as_index=False)['Rating'].mean(),)
         new_gen.insert(0, 'User_count', len(g_r))
         result= result.append(new_gen, ignore_index=True)
@@ -112,7 +118,7 @@ def indv_state2_new_user(id_movie,n_movie):
     similar_ids = cold_start.find_similar_movies(id_movie, k=n_movie, ratings=ratings)
     return similar_ids
 
-def indv_state2_old_user(id_user, n_movie):
+def indv_state2_old_user(id_user, n_movie, id_movie):
     cur = mysql.connection.cursor()
     rec_sys = RecSys(cur)
     cur.close()
@@ -126,7 +132,10 @@ def indv_state2_old_user(id_user, n_movie):
     cur.close()
 
     rec_list = idv.reco_list[:n_movie]
-    return rec_list
+
+    per_match = round((rec_sys.predict_user_rating(idv,id_movie-1)/5)*100,0)
+
+    return per_match, rec_list
 
 @app.route('/individual/state2/', methods=['GET']) # /idividual/state2?id=10
 def individual_recommend_list_state2():
@@ -135,22 +144,34 @@ def individual_recommend_list_state2():
         id_movie = int(request.args['id_movie'])
         n_movie = int(request.args['n_movie'])
     else:
-        return "Error: No id field provided. Please specify an id."
-
+        return """Error: No id field provided. Please specify an id.
+                (URL: /individual/state2?id_user= ... &n_movie= ... &id_movie= ...)
+                """
     cur = mysql.connection.cursor()
     mov_ids = cold_start.get_movie_ids_from_db(cur,id_user)
     cur.close()
 
+    per_match = 0
+
     if cold_start.check_new_user(mov_ids):
         print("New user detected!")
         rec_list = indv_state2_new_user(id_movie,n_movie)
+        result = pd.DataFrame(rec_list, columns=['id'])
+        result['percentage_match'] = 0
+        result = result.to_dict('records')
     else:
         print("old user detected!")
-        rec_list = indv_state2_old_user(id_user,n_movie)
+        per_match, rec_list = indv_state2_old_user(id_user,n_movie, id_movie)
 
-    result = utils.display_results(mysql, rec_list)
+        result = pd.DataFrame(rec_list, columns=['id', 'percentage_match'])
+        result['percentage_match'] = result['percentage_match'].apply(lambda x: round((x/5)*100,0))
+        result = result.to_dict('records')
+    res ={
+        'percentage_match': per_match,
+        'list_recommend':result
+    }   
 
-    return jsonify(result)
+    return jsonify(res)
 
 @app.route('/group/state2/', methods=['GET'])
 def group_recommend_list_state2():
@@ -159,8 +180,9 @@ def group_recommend_list_state2():
             id_movie = int(request.args['id_movie'])
             n_movie = int(request.args['n_movie'])
     else:
-        return "Error: No id field provided. Please specify an id."
-    
+        return """Error: No id field provided. Please specify an id.
+                (URL: /group/state2?id_user= ... & id_user= ... & ... &n_movie= ... &id_movie= ...)
+                """
     group_members = list(map(int, group_members))
 
 
