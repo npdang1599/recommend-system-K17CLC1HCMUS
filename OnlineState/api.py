@@ -186,11 +186,11 @@ def filter_by_genre(cur,movie_id, n_movie, predict_rating_df):
 
 @app.route('/individual/state2/', methods=['GET']) # /idividual/state2?id=10
 def individual_recommend_list_state2():
-    if 'id_user' and 'id_movie' and 'n_movie' and 'fil_by_des' in request.args:
+    if 'id_user' and 'id_movie' and 'n_movie' and 'filter' in request.args:
         id_user = int(request.args['id_user'])
         id_movie = int(request.args['id_movie'])
         n_movie = int(request.args['n_movie'])
-        fil_by_des = request.args['fil_by_des']
+        filter = request.args['filter']
     else:
         return """Error: No id field provided. Please specify an id.
                 (URL: /individual/state2?id_user= ... &n_movie= ... &id_movie= ...)
@@ -202,13 +202,13 @@ def individual_recommend_list_state2():
     per_match = 0
     if cold_start.check_new_user(mov_ids):
         print("New user detected!")
-        rec_list = indv_state2_new_user(id_movie,n_movie,fil_by_des)
+        rec_list = indv_state2_new_user(id_movie,n_movie,filter)
         result = pd.DataFrame(rec_list, columns=['id'])
         result['percentage_match'] = 0
         result = result.to_dict('records')
     else:
         print("old user detected!")
-        per_match, rec_df = indv_state2_old_user(id_user,n_movie, id_movie,fil_by_des)
+        per_match, rec_df = indv_state2_old_user(id_user,n_movie, id_movie,filter)
 
         rec_df.columns=['id', 'percentage_match']
         rec_df['percentage_match'] = rec_df['percentage_match'].apply(lambda x: round((x/5)*100,0))
