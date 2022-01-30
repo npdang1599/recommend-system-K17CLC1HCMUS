@@ -146,3 +146,18 @@ def description_similarity(cur, movie_id):
             ORDER BY similarity DESC;""",(movie_id,))
     res = cur.fetchall()
     return pd.DataFrame(res, columns=['id','similarity']) 
+
+# movie_direction_actor function: fetch data of movies' director, actor from the database
+# Input: 
+# + cur: mysql cursor
+# + id_user: id of user
+# Output:
+# + list of movie ids the user had watched
+def movie_watched_by_user(cur, id_user):
+    cur.execute("""SELECT id_user ,GROUP_CONCAT(id_movie) FROM moviedb.interactive WHERE id_user = %s AND is_clicked <> 0""",(id_user,))
+    res = cur.fetchall()
+
+    res = res[0][1]
+    ids = res.split(',')
+    ids = [int(s) for s in ids]
+    return ids

@@ -73,10 +73,7 @@ RecSys.predict_user_rating = predict_user_rating
 
 
 def idv_recommend(self,cur, user):
-
-    # print("user: ", user.members[0])
     user.grp_factors = fetch_data.user_factor(cur, user.members[0])
-    # print(user.grp_factors)
     user.bias = fetch_data.user_bias(cur, user.members[0])
 
     idv_candidate_ratings = {}
@@ -87,9 +84,7 @@ def idv_recommend(self,cur, user):
 
     # sort and filter to keep top 'num_recos_bf' recommendations
     idv_candidate_ratings = sorted(idv_candidate_ratings.items(), key=lambda x: x[1], reverse=True)
-    # [:self.cfg.num_recos_bf]
-    # user.reco_list = np.array([rating_tuple[0] for rating_tuple in idv_candidate_ratings])
-    # print(idv_candidate_ratings)
+
     user.reco_list = idv_candidate_ratings
 RecSys.idv_recommend = idv_recommend
 

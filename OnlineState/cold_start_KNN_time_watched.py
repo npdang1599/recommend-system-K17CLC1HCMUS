@@ -1,68 +1,6 @@
-from collections import Counter
-from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
 from sklearn.neighbors import NearestNeighbors
 from scipy.sparse import csr_matrix
-import numpy as np
-import fetch_data
-
-# get_genre fuction: get genre data of movies
-def get_genre(cur):
-
-    genre_df = fetch_data.genre(cur)
-    # print(genre_df)
-    
-    genre_df['genres'] = genre_df['genres'].apply(lambda x: x.split(","))
-    genres_counts = Counter(g for genres in genre_df['genres'] for g in genres)
-    
-    genres = list(genres_counts.keys())
-
-    for g in genres:
-        genre_df[g] = genre_df['genres'].transform(lambda x: int(g in x))
-    
-    # cosine_sim = cosine_similarity(genre_df[genres], genre_df[genres])
-    # print(f"Dimensions of our movie features cosine similarity matrix: {cosine_sim.shape}")
-    
-    return genre_df[genres]
-
-def check_new_user(movie_ids):
-    return len(movie_ids) < 20
-
-def get_movie_ids_from_db(cur, id):
-    cur.execute("""SELECT id_user ,GROUP_CONCAT(id_movie) FROM moviedb.interactive WHERE id_user = %s AND is_clicked <> 0""",(id,))
-    res = cur.fetchall()
-
-    res = res[0][1]
-    ids = res.split(',')
-    ids = [int(s) for s in ids]
-
-    return ids
-
-def cosine_sim(features):
-    return cosine_similarity(features)
-    
-def get_content_based_recommendations(idx,cosine_sim, n_recommendations=10):
-    sim_scores = []
-    # print('len idx: ',len(idx))
-    # print('idx: ',idx)
-
-
-    for i in range(len(idx)):
-        tmp = list(enumerate(cosine_sim[idx[i]]))
-
-        sim_scores.extend(tmp)
-    sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
-    sim_scores_list = sim_scores[1:(len(sim_scores)+1)]
-    sim_scores = sim_scores[1:(n_recommendations+1)]
-    # print("sim_scores: ", sim_scores)
-    similar_movies = [i[0] for i in sim_scores]
-    return similar_movies, sim_scores_list
-
-
-
-def get_recommend_list(list_item_ids,n_recommendations, cur):
-    cosine_sim_mtrx = cosine_sim(get_genre(cur))
-    res, res_w_score = get_content_based_recommendations(list_item_ids, cosine_sim_mtrx, n_recommendations)
-    return res, res_w_score
 
 def create_X(df):
     """
@@ -124,6 +62,4 @@ def find_similar_movies(movie_id,k, ratings, metric='cosine', show_distance=Fals
         n = neighbour.item(i)
         neighbour_ids.append(movie_inv_mapper[n])
     neighbour_ids.pop(0)
-    # print(type(neighbour_ids))
-    # print(neighbour_ids)
     return neighbour_ids

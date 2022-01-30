@@ -16,7 +16,6 @@ class Group:
         self.bias = 0
         self.reco_list = []
         
-
 @staticmethod
 def find_candidate_items(ratings, members):
     if len(members) == 0: return []

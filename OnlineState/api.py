@@ -7,7 +7,8 @@ from flask import request, jsonify
 from flask_mysqldb import MySQL
 from GroupMF_recommend_engine import RecSys
 import time
-import cold_start
+import cold_start_KNN_genre
+import cold_start_KNN_time_watched
 from flask_cors import CORS
 import KRNN_recommend_engine
 import fetch_data
@@ -32,14 +33,15 @@ def home():
 
 # Recommend list for individual user (new user included)
 def individual_recommend_list_state1(id_user, n_movie):
-    cur = mysql.connection.cursor()
-    mov_ids = cold_start.get_movie_ids_from_db(cur,id_user)
-    cur.close()
+    # cur = mysql.connection.cursor()
+    # mov_ids = fetch_data.movie_watched_by_user(cur,id_user)
+    # cur.close()
 
     cur = mysql.connection.cursor()
-    if cold_start.check_new_user(mov_ids):
+    mov_ids, is_newuser = utils.check_new_user(cur, id_user)
+    if is_newuser:
         print("New user detected!")
-        rec_list, rec_list_w_score = cold_start.get_recommend_list(mov_ids,n_movie,cur)
+        rec_list, rec_list_w_score = cold_start_KNN_genre.get_recommend_list(mov_ids,n_movie,cur)
         rec_df = pd.DataFrame({'Item':rec_list})
         rec_df['Rating'] = 0
         cur.close()
@@ -89,23 +91,22 @@ def group_recommend_list_state1():
         agg_df = agg_df.append([rec_list_idv_df])
     agg_df.columns = ['Item','Rating']
     # agg_df: Dataframe that is aggregated from indvidual recommend results (two cols: Item and Rating)
-   
 
     # Join results: 
     # + First criteria: the more the items appear in recommend lists of users, the higher pos they will appear in the final result
     # + Second: the higher Rating score of the item, the higher pos
     g_items =  pd.DataFrame(agg_df['Item'])
     g_items.drop_duplicates(subset ="Item", keep='first', inplace = True)
+    
     result = pd.DataFrame()
     for index, row in g_items.iterrows():
         g_r = agg_df[agg_df['Item'] == row['Item']]
         new_gen = pd.DataFrame(g_r.groupby(['Item'], as_index=False)['Rating'].mean(),)
         new_gen.insert(0, 'User_count', len(g_r))
         result= result.append(new_gen, ignore_index=True)
+    
     result=result.sort_values(['User_count','Rating'], ascending=[False, False])
-    
     rec_list = result['Item'].to_list()[0:n_movie]
-    
     cur.close()
     result = utils.display_results(mysql, rec_list)
 
@@ -120,7 +121,7 @@ def indv_state2_new_user(id_movie,n_movie,filter_by='default'):
         # print(des_sim_df)
         similar_ids = des_sim_df['id'].head(n_movie)
     elif filter_by == 'genre':
-        rec_list,rec_list_w_score = cold_start.get_recommend_list([id_movie],n_movie,cur)
+        rec_list,rec_list_w_score = cold_start_KNN_genre.get_recommend_list([id_movie],n_movie,cur)
         des_sim_df = pd.DataFrame(rec_list_w_score, columns=['id','similarity'])
         cur.close()
         # print(des_sim_df)
@@ -128,7 +129,7 @@ def indv_state2_new_user(id_movie,n_movie,filter_by='default'):
     else:
         ratings_df = fetch_data.rating_watchtime_df(cur)
         cur.close() 
-        similar_ids = cold_start.find_similar_movies(id_movie, k=n_movie, ratings=ratings_df)
+        similar_ids = cold_start_KNN_time_watched.find_similar_movies(id_movie, k=n_movie, ratings=ratings_df)
 
     return similar_ids
 
@@ -173,7 +174,7 @@ def filter_by_description_sim(cur,movie_id, n_movie, predict_rating_df):
     return df_inner.head(n_movie)
 
 def filter_by_genre(cur,movie_id, n_movie, predict_rating_df):
-    rec_list,rec_list_w_score = cold_start.get_recommend_list([movie_id],n_movie,cur)
+    rec_list,rec_list_w_score = cold_start_KNN_genre.get_recommend_list([movie_id],n_movie,cur)
     # print('rec_list_w_score ',rec_list_w_score)
     des_sim_df = pd.DataFrame(rec_list_w_score, columns=['id','similarity'])
     df_inner = pd.merge(predict_rating_df, des_sim_df, on='id', how='inner')
@@ -183,8 +184,7 @@ def filter_by_genre(cur,movie_id, n_movie, predict_rating_df):
     df_inner = df_inner.drop(['similarity','score'],axis = 1)
     return df_inner.head(n_movie)
 
-
-@app.route('/individual/state2/', methods=['GET']) # /idividual/state2?id=10
+@app.route('/individual/state2/', methods=['GET'])
 def individual_recommend_list_state2():
     if 'id_user' and 'id_movie' and 'n_movie' and 'filter' in request.args:
         id_user = int(request.args['id_user'])
@@ -193,14 +193,14 @@ def individual_recommend_list_state2():
         filter = request.args['filter']
     else:
         return """Error: No id field provided. Please specify an id.
-                (URL: /individual/state2?id_user= ... &n_movie= ... &id_movie= ...)
+                (URL: /individual/state2?id_user= ... &n_movie= ... &id_movie= ... &filter= (description, genre, default))
                 """
     cur = mysql.connection.cursor()
-    mov_ids = cold_start.get_movie_ids_from_db(cur,id_user)
+    mov_ids, is_newuser = utils.check_new_user(cur, id_user)
     cur.close()
 
     per_match = 0
-    if cold_start.check_new_user(mov_ids):
+    if is_newuser:
         print("New user detected!")
         rec_list = indv_state2_new_user(id_movie,n_movie,filter)
         result = pd.DataFrame(rec_list, columns=['id'])
@@ -232,13 +232,12 @@ def group_recommend_list_state2():
                 """
     group_members = list(map(int, group_members))
 
-
     cur = mysql.connection.cursor()
     for id_user in group_members:
         # print(id_user)
 
-        mov_ids = cold_start.get_movie_ids_from_db(cur,id_user)
-        if cold_start.check_new_user(mov_ids):
+        mov_ids, is_newuser = utils.check_new_user(cur, id_user)
+        if is_newuser:
             print("New user detected!")
             group_members.remove(id_user)
     cur.close()
