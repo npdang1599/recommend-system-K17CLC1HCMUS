@@ -36,7 +36,7 @@ def recal_sim(df_list, gamma, k, user_lst):
     for i in user_lst:
 
       #In id của người dùng đang xét
-      print("user_recal_sim: ",i)
+      # print("user_recal_sim: ",i)
 
       #Lấy thông tin độ tương đồng và láng giềng của người dùng
       u_sim = df_list[i]

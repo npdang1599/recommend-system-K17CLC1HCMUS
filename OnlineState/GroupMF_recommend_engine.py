@@ -1,4 +1,4 @@
-from sklearn import utils
+import utils
 from GroupMF_config import Config
 import numpy as np
 import warnings

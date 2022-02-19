@@ -20,7 +20,7 @@ def recommend_sys(user, N, training_df, user_df):
 
     #danh sách các item cần dự đoán
     #predict_list = [value for value in range(1,3953) if value not in user_item]
-    predict_list = utils.find_candidate_items(ratings, [user])
+    predict_list = utils.find_candidate_items(ratings, [user-1])
     # end = time.time()
     # print("elapse time 1: ", end-start)
     
