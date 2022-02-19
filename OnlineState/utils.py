@@ -3,6 +3,19 @@ import pandas as pd
 from scipy.sparse import csr_matrix
 import fetch_data
 
+# convert_data_to_array: 
+def to_utilize_matrix(training_data):
+    num_users = max(training_data.id_user.unique())
+    num_items = max(training_data.id_movie.unique())
+
+    ratings = np.zeros((num_users, num_items))
+    # test_ratings = np.zeros((num_users, num_items))
+
+    for row in training_data.itertuples(index=False):
+        ratings[row.id_user - 1, row.id_movie - 1] = row.rating
+    
+    return ratings
+
 # find_candidate_items: find list of items that can be recommended.
 # These should not have been watched by any member of group.
 def find_candidate_items(ratings, members):

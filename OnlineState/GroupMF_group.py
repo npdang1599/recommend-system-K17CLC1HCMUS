@@ -1,6 +1,5 @@
 import numpy as np
 
-
 class Group:
     def __init__(self, members, candidate_items, ratings):
         # member ids
@@ -15,7 +14,7 @@ class Group:
         self.grp_factors = []
         self.bias = 0
         self.reco_list = []
-        
+
 @staticmethod
 def find_candidate_items(ratings, members):
     if len(members) == 0: return []

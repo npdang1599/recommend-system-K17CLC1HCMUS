@@ -41,10 +41,6 @@ class RecSys:
 
 # read training and testing data into matrices
 def read_data(self):
-    # column_headers = ['user_id', 'item_id', 'rating', 'timestamp']
-
-    # print('Reading training data from ', self.cfg.training_file, '...')
-    # viewtime_data = pd.read_csv(self.cfg.training_file, sep='\t', names=column_headers) 
     conn = MySQLdb.connect(host="66.42.59.144", user="lucifer", passwd="12344321", db="moviedb")
     cur = conn.cursor()
     viewtime_data = fetch_data.rating_watchtime_df(cur)
@@ -56,7 +52,6 @@ def read_data(self):
     num_items = max(viewtime_data.item_id.unique())
 
     self.ratings = np.zeros((num_users, num_items))
-    # self.test_ratings = np.zeros((num_users, num_items))
 
     for row in viewtime_data.itertuples(index=False):
         self.ratings[row.user_id - 1, row.item_id - 1] = row.rating
@@ -106,7 +101,6 @@ def sgd_mse(self):
 
     training_mse = mean_squared_error(predicted_training_ratings, actual_training_ratings)
     print('training mse: ', training_mse)
-
 RecSys.sgd_mse = sgd_mse
 
 def predict_user_rating(self, user, item):
@@ -126,45 +120,3 @@ def predict_all_ratings(self):
         for item in range(self.num_items):
             self.predictions[user, item] = self.predict_user_rating(user, item)
 RecSys.predict_all_ratings = predict_all_ratings
-
-def bf_runner(self, group, aggregator=Aggregators.average_bf):
-    # aggregate user ratings into virtual group
-    # calculate factors of group
-    lamb = self.cfg.lambda_mf
-
-    all_movies = np.arange(len(self.ratings.T))
-    watched_items = sorted(list(set(all_movies) - set(group.candidate_items)))
-
-    group_rating = self.ratings[group.members, :]
-    agg_rating = aggregator(group_rating)
-    s_g = []
-    for j in watched_items:
-        s_g.append(agg_rating[j] - self.ratings_global_mean - self.item_biases[j])
-
-    # creating matrix A : contains rows of [item_factors of items in watched_list + '1' vector]
-    A = np.zeros((0, self.cfg.num_factors))
-
-    for item in watched_items:
-        A = np.vstack([A, self.item_factors[item]])
-    v = np.ones((len(watched_items), 1))
-    A = np.c_[A, v]
-
-    factor_n_bias = np.dot(np.linalg.inv(np.dot(A.T, A) + lamb * np.identity(self.cfg.num_factors + 1)), np.dot(A.T, s_g))
-    group.grp_factors_bf = factor_n_bias[:-1]
-    group.bias_bf = factor_n_bias[-1]
-
-    # Making recommendations on candidate list :
-    group_candidate_ratings = {}
-    for idx, item in enumerate(group.candidate_items):
-        cur_rating = self.predict_group_rating(group, item)
-
-        if (cur_rating > self.cfg.rating_threshold_bf):
-            group_candidate_ratings[item] = cur_rating
-
-    # sort and filter to keep top 'num_recos_bf' recommendations
-    group_candidate_ratings = sorted(group_candidate_ratings.items(), key=lambda x: x[1], reverse=True)
-    # [:self.cfg.num_recos_bf]
-
-    group.reco_list_bf = np.array([rating_tuple[0] for rating_tuple in group_candidate_ratings])
-        
-RecSys.bf_runner = bf_runner

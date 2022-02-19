@@ -88,19 +88,53 @@ def description_sim_matrix(conn):
 
     return documents_df, result
 
+# upsert
+# purpose: Insert records if not exists, Update records on the dupplicate key
+# params:
+#     conn is MySQLdb.connect
+#     table is the table name need to be inserted data, datatype is str
+#     fields are the column names of table, datatype is tuple
+#     object_list is the list of dataframe values, datatype is list
+def upsert(conn, table, fields, object_list):
+    cursor = conn.cursor()
+    table = "`"+table+"`"
+    fields = ["`"+field+"`" for field in tuple(fields)]
+    placeholders = ["%s" for field in fields]
+    assignments = ["{x} = VALUES({x})".format(
+        x=x
+    ) for x in fields]
+
+    query_string = """INSERT INTO
+    {table}
+    ({fields})
+    VALUES
+    ({placeholders})
+    ON DUPLICATE KEY UPDATE {assignments}""".format(
+                                                    table=table,
+                                                    fields=", ".join(fields),
+                                                    placeholders=", ".join(placeholders),
+                                                    assignments=", ".join(assignments)
+                                                    )
+    
+    cursor.executemany(query_string, object_list)
+    conn.commit()
+    print(table + ' upserts successfully')
 
 def main():
     conn = MySQLdb.connect(host="66.42.59.144", user="lucifer", passwd="12344321", db="moviedb")
     gr = RecSys()
     gr.sgd_factorize()
     get_MF_data(gr, conn)
-    # doc,x = description_sim_matrix(conn)
 
-    # for i in doc['id']:
-    #     sim_df = description_sim.most_similar(i, x,doc)
-    #     print(sim_df)
+    doc,x = description_sim_matrix(conn)
+    for i in range(len(doc['id'])):
+        sim_df =description_sim.most_similar(i, x,doc)
+        table = 'description_similarity'
+        fields = ('id_movie_1', 'id_movie_2', 'similarity')
+        object_list = sim_df.to_records(index=False).tolist()
+        upsert(conn, table, fields, object_list)
+        print('id_movie_1: {i} upserted successfully'.format(i=i))
     conn.close()
-
     
 if __name__ == "__main__":
     main()

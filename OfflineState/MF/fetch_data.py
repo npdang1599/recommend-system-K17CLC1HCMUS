@@ -106,7 +106,6 @@ def movie_director_actor(cur, list_item_id):
     res = cur.fetchall()
     return pd.DataFrame(res, columns=['id','director','actor'])
 
-
 # genre function: fetch data of movie genre from the database
 # Input:
 # + cur: mysql cursor
@@ -123,7 +122,7 @@ def genre(cur):
     return movies
 
 
-# movie_direction_actor function: fetch data of movies' director, actor from the database
+# movie_decription function: fetch data of movies' director, actor from the database
 # Input: 
 # + cur: mysql cursor
 # + list_item_id: List of item ids
@@ -133,3 +132,20 @@ def movie_decription(cur):
     cur.execute("""SELECT id, description FROM moviedb.movie""")
     res = cur.fetchall()
     return pd.DataFrame(res, columns=['id','documents']) 
+
+
+# movie_direction_actor function: fetch data of movies' director, actor from the database
+# Input: 
+# + cur: mysql cursor
+# + id_user: id of user
+# Output:
+# + list of movie ids the user had watched
+def movie_watched_by_user(cur, id_user):
+    cur.execute("""SELECT id_user ,GROUP_CONCAT(id_movie) FROM moviedb.interactive WHERE id_user = %s AND is_clicked <> 0""",(id_user,))
+    res = cur.fetchall()
+
+    res = res[0][1]
+    ids = res.split(',')
+    ids = [int(s) for s in ids]
+    return ids
+

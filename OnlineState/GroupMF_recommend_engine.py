@@ -1,8 +1,8 @@
+from sklearn import utils
 from GroupMF_config import Config
 import numpy as np
 import warnings
 import fetch_data
-
 
 # overflow warnings should be raised as errors
 np.seterr(over='raise')
@@ -14,7 +14,6 @@ def average(arr):
         return np.nanmean(arr, axis=0)
 
 class RecSys:
-
     def __init__(self, cur):
         self.cfg = Config(r"config.conf")
         
@@ -29,7 +28,6 @@ class RecSys:
         # self.user_biases = None
         self.item_biases = None
         
-
         # global mean of ratings a.k.a mu
         self.ratings_global_mean = None
         
@@ -42,20 +40,20 @@ class RecSys:
         # predicted ratings matrix based on factors.
         self.predictions = np.zeros((self.num_users, self.num_items))
  
-
 def read_data(self, cur):    
     training_data = fetch_data.rating_watchtime_df(cur)
-    # print('training_data: ', training_data)
 
-    # Change training_data dataframe to an array of data for calculation purposes
-    num_users = max(training_data.id_user.unique())
-    # print("num_user: ", num_users)
-    num_items = max(training_data.id_movie.unique())
+    # Change training_data dataframe to utilize matrix form
+    # num_users = max(training_data.id_user.unique())
+    # # print("num_user: ", num_users)
+    # num_items = max(training_data.id_movie.unique())
 
-    self.ratings = np.zeros((num_users, num_items))
+    # self.ratings = np.zeros((num_users, num_items))
 
-    for row in training_data.itertuples(index=False):
-        self.ratings[row.id_user - 1, row.id_movie - 1] = row.rating  
+    # for row in training_data.itertuples(index=False):
+    #     self.ratings[row.id_user - 1, row.id_movie - 1] = row.rating  
+
+    self.ratings = utils.to_utilize_matrix(training_data)
     
     self.item_factors = fetch_data.item_factor(cur)
     self.item_biases = fetch_data.item_bias(cur)
@@ -64,13 +62,11 @@ def read_data(self, cur):
     cur.close()
 RecSys.read_data = read_data
 
-
 def predict_user_rating(self, user, item):
     prediction = self.ratings_global_mean + user.bias + self.item_biases[item]
     prediction += user.grp_factors.dot(self.item_factors[item, :].T)
     return prediction
 RecSys.predict_user_rating = predict_user_rating
-
 
 def idv_recommend(self,cur, user):
     user.grp_factors = fetch_data.user_factor(cur, user.members[0])
@@ -93,7 +89,6 @@ def predict_group_rating(self, group, item):
     return self.ratings_global_mean + bias_group + self.item_biases[item] \
                                     + np.dot(factors.T, self.item_factors[item])
 RecSys.predict_group_rating = predict_group_rating
-
 
 def bf_runner(self, group):
     # aggregate user ratings into virtual group

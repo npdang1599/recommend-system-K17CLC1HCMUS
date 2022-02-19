@@ -14,7 +14,7 @@ def recommend_sys(user, N, training_df, user_df):
     # start = time.time()
     #Lấy ra độ tương đồng của người dùng 
     #user_df = pd.read_excel(r"{0}/{1}.xlsx".format(sim_path, user))
-    ratings = utils.convert_data_to_array(training_df)
+    ratings = utils.to_utilize_matrix(training_df)
     #các item của người dùng có đánh giá tính cực
     #user_item = training_df.id_movie[training_df.id_user == user][training_df.rating == 1].to_list()
 
