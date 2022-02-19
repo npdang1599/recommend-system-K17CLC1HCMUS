@@ -10,12 +10,13 @@ def main():
     click_data.dropna()
     cur.close()
 
-    first_user = click_data['id_user'].min()
-    last_user = click_data['id_user'].max()
+    user_lst = click_data.id_user.drop_duplicates().to_list()
+    # print('user_lst: ',user_lst)
 
-    sim_df = KRNN_jaccard_sim.get_list_sim(click_data, first_user, last_user)
-    # path = "./jaccard_sim/"
-    KRNN_jaccard_sim.recal_sim(sim_df,1,10,first_user, last_user)
+    # print("Rating_click_df:\n", click_data)
+    sim_df = KRNN_jaccard_sim.get_list_sim(click_data,user_lst)
+    # print("sim_df:\n", sim_df)
+    KRNN_jaccard_sim.recal_sim(sim_df,1,2,user_lst)
 
 if __name__ == "__main__":
     main()
