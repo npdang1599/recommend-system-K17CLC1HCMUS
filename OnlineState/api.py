@@ -138,7 +138,7 @@ def indv_state2_old_user(id_user, n_movie, id_movie, filter_by='default'):
     rec_sys = RecSys(cur)
     cur.close()
 
-    user = [id_user]
+    user = [id_user-1]
     candidate_items = Group.find_candidate_items(rec_sys.ratings,user)
     idv = Group(user, candidate_items, rec_sys.ratings)
 

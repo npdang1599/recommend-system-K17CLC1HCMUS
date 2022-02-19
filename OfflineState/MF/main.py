@@ -6,8 +6,6 @@ import MySQLdb
 import description_sim
 
 def get_MF_data(RecSys, conn):
-    
-
     # user_factors
     df = pd.DataFrame(RecSys.user_factors)
     df.index = df.index + 1 #convert index(0,1,2,..,n) to index(1,2,3,...,n)
