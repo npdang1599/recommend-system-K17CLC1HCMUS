@@ -9,7 +9,7 @@ class Group:
         # These should not have been watched by any member of group.
         self.candidate_items = candidate_items
         
-        self.ratings_per_member = [np.size(ratings[member].nonzero()) for member in self.members]
+        # self.ratings_per_member = [np.size(ratings[member].nonzero()) for member in self.members]
 
         self.grp_factors = []
         self.bias = 0
