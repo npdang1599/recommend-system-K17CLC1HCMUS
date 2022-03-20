@@ -1,8 +1,5 @@
-from csv import list_dialects
 import numpy as np
 import pandas as pd
-from pyparsing import col
-from scipy.sparse import csr_matrix
 import fetch_data
 
 # convert_data_to_array: 
