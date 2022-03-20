@@ -29,27 +29,30 @@ def find_candidate_items(ratings, members):
 
 # display_results: is used to config what show in json result
 def display_results(mysql,list_item_id):
-    # cur = mysql.connection.cursor()
-    # cur.execute("""
-    #             SELECT a.id, a.name, a.director, a.description, group_concat(c.name) AS genre
-    #             FROM moviedb.movie a
-    #             JOIN moviedb.movie_list b ON a.id = b.id_movie
-    #             JOIN moviedb.list c ON c.id = b.id_list
-    #             WHERE a.id IN %s AND c.type = 0
-    #             GROUP BY a.id, a.name, a.director, a.description
-    #             """,(tuple(list_item_id),))
-    # # print('id: ', id)
-    # res = cur.fetchall()
-    # cur.close()
-    # print("res: ", res)
-    # item_id_df = pd.DataFrame(list_item_id, columns=['id'])
-    # info_df = pd.DataFrame(res, columns=['id','movie_title','director','decription','gerne'])
-    # item_id_df = item_id_df.join(info_df.set_index('id'), on='id', how='left')   
-    # print('item_id_df: ', item_id_df)
-
+    cur = mysql.connection.cursor()
+    cur.execute("""
+                SELECT a.id, a.name, a.director, a.description, group_concat(c.name) AS genre
+                FROM moviedb.movie a
+                JOIN moviedb.movie_list b ON a.id = b.id_movie
+                JOIN moviedb.list c ON c.id = b.id_list
+                WHERE a.id IN %s AND c.type = 0
+                GROUP BY a.id, a.name, a.director, a.description
+                """,(tuple(list_item_id),))
+    # print('id: ', id)
+    res = cur.fetchall()
+    cur.close()
+    #print("res: ", res)
+    item_id_df = pd.DataFrame(list_item_id, columns=['id'])
+    info_df = pd.DataFrame(res, columns=['id','movie_title','director','decription','gerne'])
+    merge_df = pd.merge(item_id_df, info_df, on='id')
+    #item_id_df = item_id_df.join(info_df.set_index('id'), on='id', how='left')   
+    print('item_id_df: ', item_id_df)
+    print('info_df', info_df)
+    print('merge_df', merge_df)
+    print('tuple', tuple(list_item_id))
     # return pd.DataFrame(res, columns=['id','movie_title','director','decription','gerne']).to_dict('records')
-    # return item_id_df.to_dict('records')
-    return pd.DataFrame(list_item_id, columns=['id']).to_dict('records')
+    return merge_df.to_dict('records')
+    #return pd.DataFrame(list_item_id, columns=['id']).to_dict('records')
 
 # check_new_user: set threshold to determine wether the user is newuser or not
 def check_new_user(cur, id_user):
