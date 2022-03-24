@@ -15,6 +15,9 @@ import fetch_data
 import utils
 import json
 import genre_hueristic
+import sys
+sys.path.insert(0, 'C:/PhucDang/Study/FinalProject/Chilflix_RS/recommend-system-K17CLC1HCMUS/Offline/')
+from Offline import main
 
 app = flask.Flask(__name__)
 CORS(app)
@@ -29,6 +32,7 @@ mysql = MySQL(app)
 
 @app.route('/', methods=['GET'])
 def home():
+    main.main()
     return """<h1>Movie recommend engine</h1>
               <p>This site is APIs for getting list of recommend movies.</p>"""
 
