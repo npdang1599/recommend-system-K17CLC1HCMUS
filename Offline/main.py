@@ -9,12 +9,12 @@ from flask import render_template
 from flask_mysqldb import MySQL
 from datetime import datetime
 
-app = flask.Flask(__name__)
+# app = flask.Flask(__name__)
 
-@app.route('/', methods=['GET'])
-def home():
-    main()
-    return """<h1>Finished</h1>"""
+# @app.route('/', methods=['GET'])
+# def home():
+#     main()
+#     return """<h1>Finished</h1>"""
 
 def get_MF_data(RecSys, conn):
     # user_factors
@@ -192,4 +192,4 @@ def main():
     update_refresh_date(conn, current_datetime_df)
     conn.close()
     
-app.run()
+# app.run()
