@@ -1,8 +1,8 @@
 import numpy as np
 from sklearn.metrics import mean_squared_error
-import group
-from aggregator import Aggregators
-import fetch_data
+from Offline import group
+from Offline.aggregator import Aggregators
+from Offline import fetch_data
 import MySQLdb
 
 # overflow warnings should be raised as errors

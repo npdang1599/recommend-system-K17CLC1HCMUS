@@ -1,6 +1,6 @@
 import pandas as pd
 from collections import Counter
-import fetch_data
+from Online import fetch_data
 
 def get_newly_genre_reference(cur,id_user):
     genre_df = fetch_data.get_list_new_interactive(cur,id_user)

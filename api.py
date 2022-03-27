@@ -1,24 +1,24 @@
 from operator import is_
-from numpy import rec
-from GroupMF_group import Group
+from Online.GroupMF_group import Group
 import pandas as pd
 import flask
 from flask import request, jsonify
 from flask_mysqldb import MySQL
-from GroupMF_recommend_engine import RecSys
+from Online.GroupMF_recommend_engine import RecSys
 import time
-import cold_start_KNN_genre
-import cold_start_KNN_time_watched
+from Online import cold_start_KNN_genre
+from Online import cold_start_KNN_time_watched
 from flask_cors import CORS
-import KRNN_recommend_engine
-import fetch_data
-import utils
+from Online import KRNN_recommend_engine
+from Online import fetch_data
+from Online import utils
 import json
-import genre_hueristic
+from Online import genre_hueristic
+import os
 import sys
-sys.path.insert(0, 'C:/PhucDang/Study/FinalProject/Chilflix_RS/recommend-system-K17CLC1HCMUS/Offline/')
-from Offline import main
-
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + "/Offline/")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + "/Online/")
+from Offline import refresh_model
 app = flask.Flask(__name__)
 CORS(app)
 
@@ -32,9 +32,14 @@ mysql = MySQL(app)
 
 @app.route('/', methods=['GET'])
 def home():
-    main.main()
     return """<h1>Movie recommend engine</h1>
               <p>This site is APIs for getting list of recommend movies.</p>"""
+
+@app.route('/refresh_model', methods=['GET'])
+def refresh_model_func():
+    refresh_model.main()
+    return """<h1>Finished</h1>"""
+              
 
 # Recommend list for individual user (new user included)
 def individual_recommend_list_state1(id_user, n_movie):
@@ -171,8 +176,8 @@ def indv_state2_old_user(id_user, n_movie, id_movie, filter_by='default'):
     else:
         rec_df = pd.DataFrame(idv.reco_list[:n_movie], columns=['id', 'rating'])
 
-    per_match = round((rec_sys.predict_user_rating(idv,id_movie-1)/5)*100,0)
-
+    per_match = round((clamp(rec_sys.predict_user_rating(idv,id_movie-1)+2,0,5)/5)*100,0)
+    # print("rec_sys.predict_user_rating(idv,id_movie-1): ", rec_sys.predict_user_rating(idv,id_movie-1))
     return per_match, rec_df
 
 def filter_by_description_sim(cur,movie_id, n_movie, predict_rating_df):
@@ -225,13 +230,41 @@ def individual_recommend_list_state2():
 
 
         rec_df.columns=['id', 'percentage_match']
-        rec_df['percentage_match'] = rec_df['percentage_match'].apply(lambda x: round((x/5)*100,0))
+        # print("rec_df: ", rec_df)
+        rec_df['percentage_match'] = rec_df['percentage_match'].apply(lambda x: round((clamp(x+2,0,5)/5)*100,0))
         result = rec_df.to_dict('records')
     res ={
         'percentage_match': per_match,
         'list_recommend':result
     }   
 
+    return jsonify(res)
+
+@app.route('/individual/state2/replaced_api/',methods=['GET'])
+def replaced_api():
+    if 'id_user' and 'id_movie' and 'n_movie' and 'filter' in request.args:
+        id_user = int(request.args['id_user'])
+        id_movie = int(request.args['id_movie'])
+        n_movie = int(request.args['n_movie'])
+    else:
+        return """Error: No id field provided. Please specify an id.
+                (URL: /individual/state2/replaced_api/?id_user= ... &n_movie= ... &id_movie= ...
+                """
+    per_match = 0
+    cur = mysql.connection.cursor()
+    ratings_df = fetch_data.rating_watchtime_df(cur)
+    cur.close() 
+    similar_ids = cold_start_KNN_time_watched.find_similar_movies(id_movie, k=n_movie, ratings=ratings_df)
+    
+    result = pd.DataFrame(similar_ids, columns=['id'])
+    result['percentage_match'] = 0
+    result = result.to_dict('records')
+
+    res ={
+        'percentage_match': per_match,
+        'list_recommend':result
+    }   
+    
     return jsonify(res)
 
 @app.route('/group/state2/', methods=['GET'])
@@ -283,4 +316,8 @@ def group_recommend_list_state2():
     # print(tuple(rec_list))
     # # print("result: ", result)
     return jsonify(result)
+
+def clamp(n, minn, maxn):
+    return max(min(maxn, n), minn)
+
 app.run()

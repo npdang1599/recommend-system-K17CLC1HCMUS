@@ -1,6 +1,6 @@
 from collections import Counter
 from sklearn.metrics.pairwise import cosine_similarity
-import fetch_data
+from Online import fetch_data
 
 # genre_df: fetch all movie's genre data from database and transform to 
 # dataframe of genres where each genre is one column 
@@ -28,10 +28,13 @@ def get_content_based_recommendations(movie_ids,cosine_sim, n_recommendations=10
 
     # Sort to find highest scores
     sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
+    sim_scores = list(dict.fromkeys(sim_scores))
     sim_scores_list = sim_scores[1:(len(sim_scores)+1)]
     sim_scores = sim_scores[1:(n_recommendations+1)]
     # print("sim_scores: ", sim_scores)
     similar_movies = [i[0] for i in sim_scores]
+
+
     return similar_movies, sim_scores_list
 
 # get_recommend_list: main function (apply algorithm above): for easy calling purpose

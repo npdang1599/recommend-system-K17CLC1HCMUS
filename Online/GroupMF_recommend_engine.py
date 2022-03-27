@@ -1,8 +1,8 @@
-import utils
-from GroupMF_config import Config
+from Online import utils
+from Online.GroupMF_config import Config
 import numpy as np
 import warnings
-import fetch_data
+from Online import fetch_data
 
 # overflow warnings should be raised as errors
 np.seterr(over='raise')
@@ -15,7 +15,7 @@ def average(arr):
 
 class RecSys:
     def __init__(self, cur):
-        self.cfg = Config(r"config.conf")
+        self.cfg = Config(r"Online/config.conf")
         
         # training and testing matrices
         self.ratings = None
@@ -131,4 +131,3 @@ def bf_runner(self, group):
     group.reco_list = np.array([rating_tuple[0] for rating_tuple in group_candidate_ratings])
     group.reco_list_with_rating = group_candidate_ratings
 RecSys.bf_runner = bf_runner
-

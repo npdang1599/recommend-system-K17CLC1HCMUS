@@ -1,9 +1,9 @@
-from recommend_system import RecSys
+from Offline.recommend_system import RecSys
 import pandas as pd
 import MySQLdb
 from alive_progress import alive_bar
-import KRNN_jaccard_sim
-import fetch_data
+from Offline import KRNN_jaccard_sim
+from Offline import fetch_data
 import flask
 from flask import render_template
 from flask_mysqldb import MySQL

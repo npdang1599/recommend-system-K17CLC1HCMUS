@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-import fetch_data
+from Online import fetch_data
 
 # convert_data_to_array: 
 def to_utilize_matrix(training_data):
@@ -52,7 +52,7 @@ def display_results(mysql,list_item_id):
     print('tuple', tuple(list_item_id))
     # return pd.DataFrame(res, columns=['id','movie_title','director','decription','gerne']).to_dict('records')
     return merge_df.to_dict('records')
-    #return pd.DataFrame(list_item_id, columns=['id']).to_dict('records')
+    # return pd.DataFrame(list_item_id, columns=['id']).to_dict('records')
 
 # check_new_user: set threshold to determine wether the user is newuser or not
 def check_new_user(cur, id_user):

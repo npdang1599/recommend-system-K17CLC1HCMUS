@@ -1,6 +1,6 @@
 import MySQLdb
 from alive_progress import alive_bar
-import Jaccard_sim
+from Offline import Jaccard_sim
 
 # get_list_sim function: calculate similarity between user and store in a list
 # Input;
